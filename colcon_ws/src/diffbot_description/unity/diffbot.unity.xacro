@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="diffbot_unity" params="prefix">
+
+    <!-- =============== Isaac Sim =============== -->
+    <unity>
+      <sensor name="lidar_link" type="lidar">
+        <update_rate>10</update_rate>
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>400</samples>
+              <resolution>1</resolution>
+              <min_angle>-3.1415</min_angle>
+              <max_angle>3.1415</max_angle>
+            </horizontal>
+          </scan>
+          <range>
+            <min>0.05</min>
+            <max>20.0</max>
+            <resolution>0.01</resolution>
+          </range>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+        </ray>
+        <topicName>/lidar/scan</topicName>
+        <frameName>lidar_link</frameName>
+      </sensor>
+
+      <sensor name="camera_link" type="camera">
+        <update_rate>30.0</update_rate>
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image>
+          <width>800</width>
+          <height>600</height>
+        </image>
+        <clip>
+          <near>0.02</near>
+          <far>300</far>
+        </clip>
+        <cameraName>/camera</cameraName>
+        <imageTopicName>image_raw</imageTopicName>
+        <cameraInfoTopicName>camera_info</cameraInfoTopicName>
+        <frameName>camera_link</frameName>
+      </sensor>
+
+      <sensor name="depth_camera_link" type="depth_camera">
+        <update_rate>10.0</update_rate>
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image>
+          <width>320</width>
+          <height>240</height>
+        </image>
+        <clip>
+          <near>0.02</near>
+          <far>300</far>
+        </clip>
+        <cameraName>/depth_camera</cameraName>
+        <imageTopicName>depth_image_raw</imageTopicName>
+        <cameraInfoTopicName>depth_camera_info</cameraInfoTopicName>
+        <frameName>depth_camera_link</frameName>
+      </sensor>
+      
+    </unity>
+
+  </xacro:macro>
+    
+</robot>

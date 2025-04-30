@@ -1,0 +1,61 @@
+FROM ros:humble-ros-base-jammy
+
+# Arguments
+ARG USER=initial
+ARG GROUP=initial
+ARG UID=1000
+ARG GID=${UID}
+ARG SHELL=/bin/bash
+
+# Replace apt urls
+RUN sed -i 's@archive.ubuntu.com@ftp.jaist.ac.jp/pub/Linux@g' /etc/apt/sources.list
+
+# Install packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget curl ssh unzip \
+    zsh terminator gnome-terminal git vim tig \
+    dbus-x11 libglvnd0 libgl1 libglx0 libegl1 libxext6 libx11-6 \
+    ros-humble-desktop \
+    ros-humble-ament-cmake ros-humble-angles ros-humble-controller-manager \
+    ros-humble-pluginlib ros-humble-urdf ros-humble-yaml-cpp-vendor ros-humble-joint-state-pub* \
+    ros-humble-cv-bridge ros-humble-diagnostic-updater \
+    ros-humble-moveit ros-humble-rosbridge-server ros-humble-urdf-launch  ros-humble-urdf-tutorial \
+    ros-humble-xacro ros-humble-realtime-tools ros-humble-control-toolbox ros-humble-ros2-control* ros-humble-ros-testing \
+    ros-humble-teleop-twist-keyboard ros-humble-vision-msgs ros-humble-image-transport* \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# Env vars for the nvidia-container-runtime.
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute
+
+# Setup users and groups
+RUN groupadd --gid ${GID} ${GROUP} \
+  && useradd --gid ${GID} --uid ${UID} -ms ${SHELL} ${USER} \
+  && mkdir -p /etc/sudoers.d \
+  && echo "${USER}:x:${UID}:${UID}:${USER},,,:$HOME:${shell}" >> /etc/passwd \
+  && echo "${USER}:x:${UID}:" >> /etc/group \
+  && echo "${USER} ALL=(ALL) NOPASSWD: ALL" > "/etc/sudoers.d/${USER}" \
+  && chmod 0440 "/etc/sudoers.d/${USER}"
+
+# Setup Simulator app
+RUN cd /home/${USER} && \
+  wget -q https://github.com/REACT-ROBOT/Unity_ROS2_Robot_Simulator/releases/download/v0.1.1b/Unity_ROS2_Robot_Simulator_v0.1.1b_Linux_amd64.zip && \
+  unzip Unity_ROS2_Robot_Simulator_v0.1.1b_Linux_amd64.zip && \
+  rm Unity_ROS2_Robot_Simulator_v0.1.1b_Linux_amd64.zip
+
+RUN ln -s /usr/lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so
+
+# Switch user to ${USER}
+USER ${USER}
+
+# Make SSH available
+EXPOSE 22
+
+# Switch to user's HOME folder
+WORKDIR /home/${USER}/colcon_ws
+
+RUN echo 'source /opt/ros/humble/setup.bash' >> ~/.bashrc
+RUN echo "source /home/${USER}/colcon_ws/install/setup.sh" >> ~/.bashrc
+
+ENTRYPOINT ["/bin/bash"]
