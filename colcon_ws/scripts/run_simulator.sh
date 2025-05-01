@@ -1,2 +1,2 @@
 #!/bin/bash
-~/Unity_ROS2_Robot_Simulator_v0.1.1b_Linux_amd64/Unity_ROS2_Robot_Simulator.x86_64
+~/Unity_ROS2_Robot_Simulator_v0.1.3b_Linux_amd64/Unity_ROS2_Robot_Simulator.x86_64
