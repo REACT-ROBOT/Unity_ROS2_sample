@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
-  <xacro:macro name="diffbot_unity" params="prefix">
+  <xacro:macro name="diffbot_simulation" params="prefix">
 
-    <!-- =============== Isaac Sim =============== -->
-    <unity>
+    <!-- =============== Simulation =============== -->
+    <simulation>
       <sensor name="lidar_link" type="lidar">
-        <update_rate>10</update_rate>
+        <update_rate>30</update_rate>
         <ray>
           <scan>
             <horizontal>
@@ -32,7 +32,7 @@
       </sensor>
 
       <sensor name="camera_link" type="camera">
-        <update_rate>30.0</update_rate>
+        <update_rate>10.0</update_rate>
         <horizontal_fov>1.3962634</horizontal_fov>
         <image>
           <width>800</width>
@@ -65,7 +65,7 @@
         <frameName>depth_camera_link</frameName>
       </sensor>
       
-    </unity>
+    </simulation>
 
   </xacro:macro>
     

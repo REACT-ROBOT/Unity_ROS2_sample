@@ -13,12 +13,12 @@
     <color rgba="1.0 1.0 1.0 1.0"/>
   </material>
 
-  <physics_material name="wheel">
+  <collision_material name="wheel">
     <friction static="1.0" dynamic="1.0"/>
-  </physics_material>
-  <physics_material name="ball">
+  </collision_material>
+  <collision_material name="ball">
     <friction static="0.0" dynamic="0.0"/>
-  </physics_material>
+  </collision_material>
 
   <xacro:macro name="wheel_macro" params="parent prefix xyz">
     <joint name="${prefix}_joint" type="continuous">
@@ -26,7 +26,8 @@
       <parent link="${parent}"/>
       <child  link="${prefix}_link"/>
       <origin xyz="${xyz}" rpy="${radians(-90)} 0 0"/>
-      <unity_drive_api stiffness="0" damping="30000" force_limit="1000000"/>
+      <stiffness>0.0</stiffness>
+      <damping>30000.0</damping>
     </joint>
     <link name="${prefix}_link">
       <inertial>
@@ -44,7 +45,7 @@
         <geometry>
           <cylinder radius="0.05" length="0.02" />
         </geometry>
-        <physics_material name="wheel"/>
+        <collision_material name="wheel"/>
       </collision>
     </link>
   </xacro:macro> 
@@ -104,7 +105,7 @@
       <geometry>
         <sphere radius="0.02" />
       </geometry>
-      <physics_material name="ball"/>
+      <collision_material name="ball"/>
     </collision>
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
