@@ -11,7 +11,7 @@
 
   <!-- Import diffbot isaac description -->
   <xacro:include filename="$(find diffbot_description)/gazebo/diffbot.gazebo.xacro" />
-  <xacro:include filename="$(find diffbot_description)/unity/diffbot.simulation.xacro" />
+  <xacro:include filename="$(find diffbot_description)/simulation/diffbot.simulation.xacro" />
 
   <xacro:diffbot prefix="$(arg prefix)" use_sim="$(arg use_sim)"/>
 
