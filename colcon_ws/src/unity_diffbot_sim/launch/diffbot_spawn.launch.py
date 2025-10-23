@@ -128,6 +128,6 @@ def generate_launch_description():
         diff_drive_controller_spawner,
         velocity_converter,
         spawn_robot,
-        image_republish,
-        depth_image_republish,
+        #image_republish,
+        #depth_image_republish,
     ])
