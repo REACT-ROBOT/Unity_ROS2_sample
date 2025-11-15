@@ -25,7 +25,7 @@ diff_drive_controller:
     pose_covariance_diagonal : [0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 1000.0]
     twist_covariance_diagonal: [0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 1000.0]
 
-    enable_odom_tf: true
+    enable_odom_tf: false
 
     cmd_vel_timeout: 3.0
     publish_limited_velocity: true
