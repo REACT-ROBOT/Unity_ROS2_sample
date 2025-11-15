@@ -1,0 +1,791 @@
+<?xml version="1.0" ?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="$(arg robot_name)">
+  <xacro:arg name="robot_name" default="khr3"/>
+  <xacro:arg name="use_sim" default="false"/>
+  
+  <xacro:property name="prefix" value="$(arg robot_name)_"/>
+
+<xacro:include filename="$(find khr3_description)/xacro/materials.xacro" />
+<xacro:if value="$(arg use_sim)">
+  <xacro:include filename="$(find khr3_description)/xacro/khr3_001.simulation.xacro" />
+</xacro:if>
+
+ <!-- Description of robot -->
+<link name="${prefix}base_footprint">
+  <inertial>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <mass value="0.001"/>
+    <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
+  </inertial>
+</link>
+
+<link name="${prefix}base_link">
+  <inertial>
+    <origin xyz="-0.0004860989233068058 0.009532810756286874 0.27413898086600197" rpy="0 0 0"/>
+    <mass value="0.13408213174666955"/>
+    <inertia ixx="6.3e-05" iyy="3.6e-05" izz="6.8e-05" ixy="0.0" iyz="-0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}c_chest_c">
+  <inertial>
+    <origin xyz="-9.07564737343998e-05 -4.299695898109246e-08 0.04371354326547944" rpy="0 0 0"/>
+    <mass value="0.1751250442918052"/>
+    <inertia ixx="0.000158" iyy="6.6e-05" izz="0.000176" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.010956 -0.009542 -0.29475" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/c_chest_c_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.010956 -0.009542 -0.29475" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/c_chest_c_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}c_chest_b">
+  <inertial>
+    <origin xyz="-0.027362562372520854 2.840518613928325e-06 0.004477857770456339" rpy="0 0 0"/>
+    <mass value="0.08659748664099903"/>
+    <inertia ixx="0.000118" iyy="5.2e-05" izz="9.8e-05" ixy="0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.015044 -0.009542 -0.326" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/c_chest_b_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="0.015044 -0.009542 -0.326" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/c_chest_b_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}c_chest_a">
+  <inertial>
+    <origin xyz="0.004546800382866728 -4.1161282904669805e-08 -0.0024788373011201403" rpy="0 0 0"/>
+    <mass value="0.033763915303500654"/>
+    <inertia ixx="3.4e-05" iyy="1.9e-05" izz="3.6e-05" ixy="-0.0" iyz="0.0" ixz="-3e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.036956 -0.009542 -0.326" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/c_chest_a_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.036956 -0.009542 -0.326" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/c_chest_a_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}c_head_a">
+  <inertial>
+    <origin xyz="0.003079433021973575 -4.3073247395913894e-08 0.022888877386975093" rpy="0 0 0"/>
+    <mass value="0.012778861662402228"/>
+    <inertia ixx="2e-06" iyy="4e-06" izz="3e-06" ixy="-0.0" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.022456 -0.009542 -0.35425" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/c_head_a_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.022456 -0.009542 -0.35425" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/c_head_a_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}l_shoulder">
+  <inertial>
+    <origin xyz="0.00016940373751364937 0.008747288709026461 3.2529534621517087e-14" rpy="0 0 0"/>
+    <mass value="0.012120367829212707"/>
+    <inertia ixx="1e-06" iyy="4e-06" izz="4e-06" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.022456 -0.058442 -0.3425" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_shoulder_v5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.022456 -0.058442 -0.3425" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_shoulder_v5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}l_upperarm">
+  <inertial>
+    <origin xyz="-0.02256531849252991 -4.2996961130414846e-08 -0.03564584515249991" rpy="0 0 0"/>
+    <mass value="0.09077338253436838"/>
+    <inertia ixx="5.4e-05" iyy="6.4e-05" izz="1.8e-05" ixy="0.0" iyz="0.0" ixz="-1e-05"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.038206 -0.083442 -0.3425" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_upperarm_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.038206 -0.083442 -0.3425" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_upperarm_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}l_elbow">
+  <inertial>
+    <origin xyz="5.745484729775818e-05 -4.299695875731313e-08 -0.012574921301198305" rpy="0 0 0"/>
+    <mass value="0.044771268874731644"/>
+    <inertia ixx="6e-06" iyy="8e-06" izz="1e-05" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.022206 -0.083442 -0.27075" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_elbow_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.022206 -0.083442 -0.27075" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_elbow_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}l_lowerarm">
+  <inertial>
+    <origin xyz="0.00017641899363149416 -0.0156924274010031 -0.04569649848488025" rpy="0 0 0"/>
+    <mass value="0.02983803452815617"/>
+    <inertia ixx="1.8e-05" iyy="1.6e-05" izz="4e-06" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.033706 -0.099692 -0.25625" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_lowerarm_v7_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.033706 -0.099692 -0.25625" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_lowerarm_v7_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}r_shoulder">
+  <inertial>
+    <origin xyz="0.00016940373733528857 -0.008747374702943796 5.306866057708248e-14" rpy="0 0 0"/>
+    <mass value="0.01212036782921271"/>
+    <inertia ixx="1e-06" iyy="4e-06" izz="4e-06" ixy="0.0" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.022456 0.039358 -0.3425" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_shoulder_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.022456 0.039358 -0.3425" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_shoulder_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}r_upperarm">
+  <inertial>
+    <origin xyz="-0.022565318492529688 -4.2996961074903695e-08 -0.03564584515249991" rpy="0 0 0"/>
+    <mass value="0.09077338253436838"/>
+    <inertia ixx="5.4e-05" iyy="6.4e-05" izz="1.8e-05" ixy="0.0" iyz="0.0" ixz="-1e-05"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.038206 0.064358 -0.3425" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_upperarm_v3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.038206 0.064358 -0.3425" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_upperarm_v3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}r_elbow">
+  <inertial>
+    <origin xyz="5.7454847330103836e-05 -4.2996958674046404e-08 -0.012574921301198305" rpy="0 0 0"/>
+    <mass value="0.044771268874731526"/>
+    <inertia ixx="6e-06" iyy="8e-06" izz="1e-05" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.022206 0.064358 -0.27075" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_elbow_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.022206 0.064358 -0.27075" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_elbow_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}r_lowerarm">
+  <inertial>
+    <origin xyz="0.00017641899364317232 0.01569234140705124 -0.04569649848495705" rpy="0 0 0"/>
+    <mass value="0.029838034528201704"/>
+    <inertia ixx="1.8e-05" iyy="1.6e-05" izz="4e-06" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.033706 0.080608 -0.25625" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_lowerarm_v5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.033706 0.080608 -0.25625" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_lowerarm_v5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}l_hipjointupper">
+  <inertial>
+    <origin xyz="3.293764515496962e-05 -0.0011113374509284651 -0.007400199793976242" rpy="0 0 0"/>
+    <mass value="0.005702042499396512"/>
+    <inertia ixx="1e-06" iyy="2e-06" izz="2e-06" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.010956 -0.031242 -0.25575" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_hipjointupper_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.010956 -0.031242 -0.25575" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_hipjointupper_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}l_hipjointlower">
+  <inertial>
+    <origin xyz="-0.016250242301438553 0.011463181378816707 -0.0066539419866288585" rpy="0 0 0"/>
+    <mass value="0.06689532645492419"/>
+    <inertia ixx="2e-05" iyy="1.4e-05" izz="1.5e-05" ixy="0.0" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.027656 -0.027242 -0.233" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_hipjointlower_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.027656 -0.027242 -0.233" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_hipjointlower_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}l_upperreg">
+  <inertial>
+    <origin xyz="0.002589780466551929 -0.016500042996958703 -0.03375567398425394" rpy="0 0 0"/>
+    <mass value="0.09097466003274825"/>
+    <inertia ixx="5.9e-05" iyy="5.6e-05" izz="1.3e-05" ixy="0.0" iyz="0.0" ixz="4e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.011406 -0.054742 -0.1935" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_upperreg_v3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.011406 -0.054742 -0.1935" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_upperreg_v3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}l_lowerreg">
+  <inertial>
+    <origin xyz="0.0044805681524230055 -0.015970110512676966 -0.04182100713444817" rpy="0 0 0"/>
+    <mass value="0.06094435150357522"/>
+    <inertia ixx="2.9e-05" iyy="2.6e-05" izz="1.1e-05" ixy="0.0" iyz="-0.0" ixz="-5e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.011406 -0.054742 -0.1285" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_lowerreg_v5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.011406 -0.054742 -0.1285" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_lowerreg_v5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}l_ankle">
+  <inertial>
+    <origin xyz="0.0001886240331466279 -0.01666391069306302 -0.03292964719213733" rpy="0 0 0"/>
+    <mass value="0.06757551562559608"/>
+    <inertia ixx="2e-05" iyy="1.4e-05" izz="1.6e-05" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.008043 -0.055242 -0.063587" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_ankle_v5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.008043 -0.055242 -0.063587" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_ankle_v5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}l_foot">
+  <inertial>
+    <origin xyz="-0.020700151207673705 0.023895172544662873 -0.021244534057561063" rpy="0 0 0"/>
+    <mass value="0.03847104970565043"/>
+    <inertia ixx="2.3e-05" iyy="4.8e-05" izz="6.9e-05" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.027793 -0.027242 -0.024087" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_foot_v3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.027793 -0.027242 -0.024087" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/l_foot_v3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}r_hipjointupper">
+  <inertial>
+    <origin xyz="3.2937645155054623e-05 0.0011112514569246185 -0.007400199793976325" rpy="0 0 0"/>
+    <mass value="0.005702042499396526"/>
+    <inertia ixx="1e-06" iyy="2e-06" izz="2e-06" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.010956 0.012158 -0.25575" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_hipjointupper_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.010956 0.012158 -0.25575" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_hipjointupper_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}r_hipjointlower">
+  <inertial>
+    <origin xyz="-0.016250242301436166 -0.011463267372574608 -0.006653941986625556" rpy="0 0 0"/>
+    <mass value="0.0668953264549242"/>
+    <inertia ixx="2e-05" iyy="1.4e-05" izz="1.5e-05" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.027656 0.008158 -0.233" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_hipjointlower_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.027656 0.008158 -0.233" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_hipjointlower_v4_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}r_upperreg">
+  <inertial>
+    <origin xyz="0.0025897804665520278 0.016499957003041386 -0.03375567398425397" rpy="0 0 0"/>
+    <mass value="0.09097466003274823"/>
+    <inertia ixx="5.9e-05" iyy="5.6e-05" izz="1.3e-05" ixy="-0.0" iyz="0.0" ixz="4e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.011406 0.035658 -0.1935" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_upperreg_v3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.011406 0.035658 -0.1935" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_upperreg_v3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}r_lowerreg">
+  <inertial>
+    <origin xyz="0.004480568152423165 0.01597002451875967 -0.04182100713444818" rpy="0 0 0"/>
+    <mass value="0.06094435150357523"/>
+    <inertia ixx="2.9e-05" iyy="2.6e-05" izz="1.1e-05" ixy="-0.0" iyz="0.0" ixz="-5e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.011406 0.035658 -0.1285" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_lowerreg_v5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.011406 0.035658 -0.1285" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_lowerreg_v5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}r_ankle">
+  <inertial>
+    <origin xyz="0.00018862403314765484 0.01666382469921859 -0.03292964719213813" rpy="0 0 0"/>
+    <mass value="0.06757551562559609"/>
+    <inertia ixx="2e-05" iyy="1.4e-05" izz="1.6e-05" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.008043 0.036158 -0.063587" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_ankle_v5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.008043 0.036158 -0.063587" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_ankle_v5_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="${prefix}r_foot">
+  <inertial>
+    <origin xyz="-0.020700151207566492 -0.023895258538579878 -0.02124453405755709" rpy="0 0 0"/>
+    <mass value="0.03847104970565037"/>
+    <inertia ixx="2.3e-05" iyy="4.8e-05" izz="6.9e-05" ixy="-0.0" iyz="-0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.027793 0.008158 -0.024087" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_foot_v3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.027793 0.008158 -0.024087" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find khr3_description)/meshes/r_foot_v3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+ <!-- continuous <-> revolute -->
+
+<joint name="${prefix}floating_joint" type="fixed">
+  <parent link="${prefix}base_footprint"/>
+  <child link="${prefix}base_link"/>
+  <origin rpy="0 0 0" xyz="0 0 0"/>
+</joint>
+
+<joint name="${prefix}c_chest_yaw" type="continuous">
+  <origin xyz="0.010956 0.009542 0.29475" rpy="0 0 0"/>
+  <parent link="${prefix}base_link"/>
+  <child link="${prefix}c_chest_c"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="0.0 -0.0 1.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}intrgration_01" type="fixed">
+  <origin xyz="-0.026 0.0 0.03125" rpy="0 0 0"/>
+  <parent link="${prefix}c_chest_c"/>
+  <child link="${prefix}c_chest_b"/>
+</joint>
+
+<joint name="${prefix}intrgration_02" type="fixed">
+  <origin xyz="0.026 0.0 0.03125" rpy="0 0 0"/>
+  <parent link="${prefix}c_chest_c"/>
+  <child link="${prefix}c_chest_a"/>
+</joint>
+
+<joint name="${prefix}l_shoulder_pitch" type="continuous">
+  <origin xyz="0.0115 0.0489 0.04775" rpy="0 0 0"/>
+  <parent link="${prefix}c_chest_c"/>
+  <child link="${prefix}l_shoulder"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-0.0 1.0 0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}l_shoulder_roll" type="continuous">
+  <origin xyz="0.01575 0.025 0.0" rpy="0 0 0"/>
+  <parent link="${prefix}l_shoulder"/>
+  <child link="${prefix}l_upperarm"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="1.0 -0.0 0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}l_elbow_yaw" type="continuous">
+  <origin xyz="-0.016 0.0 -0.07175" rpy="0 0 0"/>
+  <parent link="${prefix}l_upperarm"/>
+  <child link="${prefix}l_elbow"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-0.0 -0.0 1.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}l_elbow_pitch" type="continuous">
+  <origin xyz="0.0115 0.01625 -0.0145" rpy="0 0 0"/>
+  <parent link="${prefix}l_elbow"/>
+  <child link="${prefix}l_lowerarm"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-0.0 1.0 0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}l_hipjoint_yaw" type="continuous">
+  <origin xyz="0.010956 0.031242 0.25575" rpy="0 0 0"/>
+  <parent link="${prefix}base_link"/>
+  <child link="${prefix}l_hipjointupper"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-0.0 0.0 1.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}l_hipjoint_roll" type="continuous">
+  <origin xyz="0.0167 -0.004 -0.02275" rpy="0 0 0"/>
+  <parent link="${prefix}l_hipjointupper"/>
+  <child link="${prefix}l_hipjointlower"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="1.0 0.0 -0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}l_hipjoint_pitch" type="continuous">
+  <origin xyz="-0.01625 0.0275 -0.0395" rpy="0 0 0"/>
+  <parent link="${prefix}l_hipjointlower"/>
+  <child link="${prefix}l_upperreg"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-0.0 1.0 0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}l_knee_pitch" type="continuous">
+  <origin xyz="0.0 0.0 -0.065" rpy="0 0 0"/>
+  <parent link="${prefix}l_upperreg"/>
+  <child link="${prefix}l_lowerreg"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-0.0 1.0 0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}l_ankle_pitch" type="continuous">
+  <origin xyz="-0.003363 0.0005 -0.064913" rpy="0 0 0"/>
+  <parent link="${prefix}l_lowerreg"/>
+  <child link="${prefix}l_ankle"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="0.0 1.0 0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}l_ankle_roll" type="continuous">
+  <origin xyz="0.01975 -0.028 -0.0395" rpy="0 0 0"/>
+  <parent link="${prefix}l_ankle"/>
+  <child link="${prefix}l_foot"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="1.0 -0.0 -0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}c_head_yaw" type="continuous">
+  <origin xyz="0.0115 0.0 0.0595" rpy="0 0 0"/>
+  <parent link="${prefix}c_chest_c"/>
+  <child link="${prefix}c_head_a"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="0.0 -0.0 1.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}r_shoulder_pitch" type="continuous">
+  <origin xyz="0.0115 -0.0489 0.04775" rpy="0 0 0"/>
+  <parent link="${prefix}c_chest_c"/>
+  <child link="${prefix}r_shoulder"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="0.0 1.0 -0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}r_shoulder_roll" type="continuous">
+  <origin xyz="0.01575 -0.025 0.0" rpy="0 0 0"/>
+  <parent link="${prefix}r_shoulder"/>
+  <child link="${prefix}r_upperarm"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-1.0 0.0 0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}r_elbow_yaw" type="continuous">
+  <origin xyz="-0.016 0.0 -0.07175" rpy="0 0 0"/>
+  <parent link="${prefix}r_upperarm"/>
+  <child link="${prefix}r_elbow"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-0.0 0.0 -1.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}r_elbow_pitch" type="continuous">
+  <origin xyz="0.0115 -0.01625 -0.0145" rpy="0 0 0"/>
+  <parent link="${prefix}r_elbow"/>
+  <child link="${prefix}r_lowerarm"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-0.0 1.0 -0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}r_hipjoint_yaw" type="continuous">
+  <origin xyz="0.010956 -0.012158 0.25575" rpy="0 0 0"/>
+  <parent link="${prefix}base_link"/>
+  <child link="${prefix}r_hipjointupper"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-0.0 0.0 -1.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}r_hipjoint_roll" type="continuous">
+  <origin xyz="0.0167 0.004 -0.02275" rpy="0 0 0"/>
+  <parent link="${prefix}r_hipjointupper"/>
+  <child link="${prefix}r_hipjointlower"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-1.0 0.0 0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}r_hipjoint_pitch" type="continuous">
+  <origin xyz="-0.01625 -0.0275 -0.0395" rpy="0 0 0"/>
+  <parent link="${prefix}r_hipjointlower"/>
+  <child link="${prefix}r_upperreg"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="0.0 1.0 0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}r_knee_pitch" type="continuous">
+  <origin xyz="0.0 0.0 -0.065" rpy="0 0 0"/>
+  <parent link="${prefix}r_upperreg"/>
+  <child link="${prefix}r_lowerreg"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-0.0 1.0 -0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}r_ankle_pitch" type="continuous">
+  <origin xyz="-0.003363 -0.0005 -0.064913" rpy="0 0 0"/>
+  <parent link="${prefix}r_lowerreg"/>
+  <child link="${prefix}r_ankle"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="0.0 1.0 -0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<joint name="${prefix}r_ankle_roll" type="continuous">
+  <origin xyz="0.01975 0.028 -0.0395" rpy="0 0 0"/>
+  <parent link="${prefix}r_ankle"/>
+  <child link="${prefix}r_foot"/>
+  <stiffness>30000.0</stiffness>
+  <damping>0.0</damping>
+  <axis xyz="-1.0 0.0 0.0"/>
+  <limit effort="1000" lower="${radians(-90)}" upper="${radians(90)}" velocity="100.0"/>
+</joint>
+
+<xacro:if value="$(arg use_sim)">
+  <xacro:khr3_simulation name="$(arg robot_name)" prefix="${prefix}"/>
+</xacro:if>
+
+</robot>

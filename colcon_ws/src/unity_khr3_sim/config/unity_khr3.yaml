@@ -1,0 +1,54 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+    joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - c_chest_yaw
+      - l_shoulder_pitch
+      - l_shoulder_roll
+      - l_elbow_yaw
+      - l_elbow_pitch
+      - l_hipjoint_yaw
+      - l_hipjoint_roll
+      - l_hipjoint_pitch
+      - l_knee_pitch
+      - l_ankle_pitch
+      - l_ankle_roll
+      - c_head_yaw
+      - r_shoulder_pitch
+      - r_shoulder_roll
+      - r_elbow_yaw
+      - r_elbow_pitch
+      - r_hipjoint_yaw
+      - r_hipjoint_roll
+      - r_hipjoint_pitch
+      - r_knee_pitch
+      - r_ankle_pitch
+      - r_ankle_roll
+
+    command_interfaces:
+      - position
+
+    state_interfaces:
+      - position
+      - velocity
+
+    state_publish_rate: 50.0
+    action_monitor_rate: 20.0
+
+    allow_partial_joints_goal: false
+    open_loop_control: true
+    allow_integration_in_goal_trajectories: true
+    constraints:
+      stopped_velocity_tolerance: 0.01
+      goal_time: 0.0
+
+
