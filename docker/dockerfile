@@ -25,6 +25,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip v4l2loopback-dkms \
+  && pip3 install -U pyvirtualcam \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
 # Env vars for the nvidia-container-runtime.
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute

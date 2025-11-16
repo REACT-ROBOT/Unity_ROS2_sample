@@ -1,0 +1,30 @@
+# CSV file format: robot1_link,robot2_link
+# Lines define corresponding links for Robot 1 and Robot 2
+# Maximum 30 links per robot (padded with -5,-5,-5 if fewer)
+
+# Example links for KHR3 robot (adjust based on your URDF)
+KHR3_1_base_link,KHR3_2_base_link
+KHR3_1_c_chest_a,KHR3_2_c_chest_a
+KHR3_1_c_chest_b,KHR3_2_c_chest_b
+KHR3_1_c_chest_c,KHR3_2_c_chest_c
+KHR3_1_c_head_a,KHR3_2_c_head_a
+KHR3_1_l_ankle,KHR3_2_l_ankle
+KHR3_1_l_elbow,KHR3_2_l_elbow
+KHR3_1_l_foot,KHR3_2_l_foot
+KHR3_1_l_hipjointlower,KHR3_2_l_hipjointlower
+KHR3_1_l_hipjointupper,KHR3_2_l_hipjointupper
+KHR3_1_l_lowerarm,KHR3_2_l_lowerarm
+KHR3_1_l_lowerreg,KHR3_2_l_lowerreg
+KHR3_1_l_shoulder,KHR3_2_l_shoulder
+KHR3_1_l_upperarm,KHR3_2_l_upperarm
+KHR3_1_l_upperreg,KHR3_2_l_upperreg
+KHR3_1_r_ankle,KHR3_2_r_ankle
+KHR3_1_r_elbow,KHR3_2_r_elbow
+KHR3_1_r_foot,KHR3_2_r_foot
+KHR3_1_r_hipjointlower,KHR3_2_r_hipjointlower
+KHR3_1_r_hipjointupper,KHR3_2_r_hipjointupper
+KHR3_1_r_lowerarm,KHR3_2_r_lowerarm
+KHR3_1_r_lowerreg,KHR3_2_r_lowerreg
+KHR3_1_r_shoulder,KHR3_2_r_shoulder
+KHR3_1_r_upperarm,KHR3_2_r_upperarm
+KHR3_1_r_upperreg,KHR3_2_r_upperreg
