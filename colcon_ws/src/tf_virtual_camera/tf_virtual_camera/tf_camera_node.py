@@ -212,13 +212,13 @@ class TfVirtualCameraNode(Node):
                 positions[i], rotations[i] = result
                 #self.get_logger().info(f'{i}: Link {link_name} position: {positions[i]}, rotation: {rotations[i]}')
             else:
-                # Padding with (-5, -5, -5) and identity quaternion
-                positions[i] = np.array([-5.0, -5.0, -5.0])
+                # Padding with (-4.5, -4.5, -4.5) and identity quaternion
+                positions[i] = np.array([-4.5, -4.5, -4.5])
                 rotations[i] = np.array([0.0, 0.0, 0.0, 1.0])
         
         # Pad remaining slots for robot 1 (if less than 30 links)
         for i in range(len(self.robot1_links), 30):
-            positions[i] = np.array([-5.0, -5.0, -5.0])
+            positions[i] = np.array([-4.5, -4.5, -4.5])
             rotations[i] = np.array([0.0, 0.0, 0.0, 1.0])
         
         # Robot 2 (links 30-59)
@@ -229,13 +229,13 @@ class TfVirtualCameraNode(Node):
                 positions[idx], rotations[idx] = result
                 #self.get_logger().info(f'{i}: Link {link_name} position: {positions[idx]}, rotation: {rotations[idx]}')
             else:
-                positions[idx] = np.array([-5.0, -5.0, -5.0])
+                positions[idx] = np.array([-4.5, -4.5, -4.5])
                 rotations[idx] = np.array([0.0, 0.0, 0.0, 1.0])
         
         # Pad remaining slots for robot 2
         for i in range(len(self.robot2_links), 30):
             idx = 30 + i
-            positions[idx] = np.array([-5.0, -5.0, -5.0])
+            positions[idx] = np.array([-4.5, -4.5, -4.5])
             rotations[idx] = np.array([0.0, 0.0, 0.0, 1.0])
         
         # Encode to ShaderMotion format

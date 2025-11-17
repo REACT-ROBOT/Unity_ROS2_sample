@@ -75,25 +75,38 @@ class ShaderMotionEncoder:
         位置を16bitエンコード (3成分 → 6値)
         想定範囲: [-5, 5] m
         
-        ビット交互配置:
-        16bit値のビットを奇数/偶数に分けて2つのバイトに格納
-        high_byte: bit15, bit13, bit11, bit9, bit7, bit5, bit3, bit1 (奇数ビット)
-        low_byte:  bit14, bit12, bit10, bit8, bit6, bit4, bit2, bit0 (偶数ビット)
+        符号-絶対値形式 (14bit精度):
+        bit15: 符号ビット (0=負, 1=正)
+        bit14: 予約ビット (常に0)
+        bit13-0: 絶対値 (0-16383, 14bit精度)
         
-        これにより動画圧縮時の量子化誤差の影響を両バイトに分散
+        利点:
+        - 0付近の値が安定 (ビデオ圧縮での異常値を防止)
+        - 絶対値の劣化は線形的
+        - 14bit精度: 5m / 16384 ≈ 0.3mm の分解能
+        
+        ビット交互配置:
+        high_byte: bit15(符号), bit13, bit11, bit9, bit7, bit5, bit3, bit1 (奇数ビット)
+        low_byte:  bit14(0), bit12, bit10, bit8, bit6, bit4, bit2, bit0 (偶数ビット)
         """
-        # [-5, 5] → [0, 1] → [0, 65535]
-        normalized = (pos + 5.0) / 10.0
-        normalized = np.clip(normalized, 0.0, 1.0)
-
-        # 各成分を16bitに変換し、ビット交互配置で分割
+        # 各成分を符号-絶対値形式で16bitに変換し、ビット交互配置で分割
         values = []
-        for val in normalized:
-            val_16bit = int(val * 65535.0)
+        for val in pos:
+            # 符号と絶対値に分離
+            sign = 1 if val >= 0 else 0
+            abs_val = abs(val)
+            abs_val = min(abs_val, 5.0)  # [-5, 5]にクリップ
+            
+            # 絶対値を14bitに変換 (0-16383)
+            # 5m → 16383 にマッピング
+            abs_14bit = int((abs_val / 5.0) * 16383.0)
+            
+            # bit15=符号, bit14=0(予約), bit13-0=絶対値
+            val_16bit = (sign << 15) | (0 << 14) | abs_14bit
             
             # ビット交互配置: 奇数ビットと偶数ビットを分離
             high_byte = (
-                ((val_16bit >> 15) & 0x01) << 7 |  # bit15 → bit7
+                ((val_16bit >> 15) & 0x01) << 7 |  # bit15(符号) → bit7
                 ((val_16bit >> 13) & 0x01) << 6 |  # bit13 → bit6
                 ((val_16bit >> 11) & 0x01) << 5 |  # bit11 → bit5
                 ((val_16bit >>  9) & 0x01) << 4 |  # bit9  → bit4
@@ -104,7 +117,7 @@ class ShaderMotionEncoder:
             )
             
             low_byte = (
-                ((val_16bit >> 14) & 0x01) << 7 |  # bit14 → bit7
+                ((val_16bit >> 14) & 0x01) << 7 |  # bit14(0) → bit7
                 ((val_16bit >> 12) & 0x01) << 6 |  # bit12 → bit6
                 ((val_16bit >> 10) & 0x01) << 5 |  # bit10 → bit5
                 ((val_16bit >>  8) & 0x01) << 4 |  # bit8  → bit4
