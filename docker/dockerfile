@@ -40,9 +40,9 @@ RUN groupadd --gid ${GID} ${GROUP} \
 
 # Setup Simulator app
 RUN cd /home/${USER} && \
-  wget -q https://github.com/REACT-ROBOT/Unity_ROS2_Robot_Simulator/releases/download/v0.7.6/Unity_ROS2_Robot_Simulator_v0.7.6_Linux_amd64.zip && \
-  unzip Unity_ROS2_Robot_Simulator_v0.7.6_Linux_amd64.zip && \
-  rm Unity_ROS2_Robot_Simulator_v0.7.6_Linux_amd64.zip
+  wget -q https://github.com/REACT-ROBOT/Unity_ROS2_Robot_Simulator/releases/download/v0.7.8/Unity_ROS2_Robot_Simulator_v0.7.8_Linux_amd64.zip && \
+  unzip Unity_ROS2_Robot_Simulator_v0.7.8_Linux_amd64.zip && \
+  rm Unity_ROS2_Robot_Simulator_v0.7.8_Linux_amd64.zip
 
 RUN ln -s /usr/lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so
 
