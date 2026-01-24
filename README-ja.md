@@ -69,3 +69,8 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 - センサーデータのシミュレーション
 - カスタマイズ可能なロボットモデル
 
+## 謝辞
+
+本プロジェクトでは、MasutaniLab の [choreonoid_ros_khr3](https://github.com/MasutaniLab/choreonoid_ros_khr3) に含まれる KHR3-HV（二足歩行ロボット）のモデルを流用させていただきました。
+公開・共有してくださっていることに感謝いたします。
+

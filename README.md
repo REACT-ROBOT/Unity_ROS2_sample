@@ -68,3 +68,9 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 - Physics simulation environment
 - Sensor data simulation
 - Customizable robot models
+
+## Acknowledgements
+
+This project reuses the KHR3-HV biped robot model provided in MasutaniLab’s [choreonoid_ros_khr3](https://github.com/MasutaniLab/choreonoid_ros_khr3).
+We appreciate the authors for making it available to the community.
+
