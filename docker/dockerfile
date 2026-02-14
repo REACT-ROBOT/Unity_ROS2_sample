@@ -51,9 +51,9 @@ USER ${USER}
 
 # Setup Simulator app
 RUN cd /home/${USER} && \
-  wget -q https://github.com/REACT-ROBOT/Unity_ROS2_Robot_Simulator/releases/download/v0.8.2/Unity_ROS2_Robot_Simulator_v0.8.2_Linux_amd64.zip && \
-  unzip Unity_ROS2_Robot_Simulator_v0.8.2_Linux_amd64.zip && \
-  rm Unity_ROS2_Robot_Simulator_v0.8.2_Linux_amd64.zip
+  wget -q https://github.com/REACT-ROBOT/Unity_ROS2_Robot_Simulator/releases/download/v0.9.1/Unity_ROS2_Robot_Simulator_v0.9.1_Linux_amd64.zip && \
+  unzip Unity_ROS2_Robot_Simulator_v0.9.1_Linux_amd64.zip && \
+  rm Unity_ROS2_Robot_Simulator_v0.9.1_Linux_amd64.zip
 
 # Make SSH available
 EXPOSE 22
