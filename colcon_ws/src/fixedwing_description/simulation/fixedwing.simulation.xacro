@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="fixedwing_simulation" params="prefix">
+
+    <!-- =============== Simulation =============== -->
+    <simulation>
+      <sensor name="fuselage_link" type="thruster" id="main">
+        <origin xyz="1.4 0 0" rpy="0 0 0"/>
+        <axis xyz="1 0 0"/>
+        <max_force>160</max_force>          <!-- N -->
+        <initial_throttle>0.0</initial_throttle> <!-- -1..1 -->
+        <command_topic>/fixedwing/thruster</command_topic>
+      </sensor>
+      
+    </simulation>
+
+  </xacro:macro>
+    
+</robot>

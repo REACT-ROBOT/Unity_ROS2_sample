@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="fixedwing">
+  <xacro:arg name="prefix" default="" />
+  <xacro:arg name="use_sim" default="false" />
+  <xacro:arg name="use_wing_mesh" default="true" />
+
+  <xacro:include filename="$(find fixedwing_description)/robots/fixedwing_description.urdf.xacro" />
+  <xacro:include filename="$(find fixedwing_description)/ros2_control/fixedwing.ros2_control.xacro" />
+  <xacro:include filename="$(find fixedwing_description)/simulation/fixedwing.simulation.xacro" />
+
+  <xacro:fixedwing prefix="$(arg prefix)" use_wing_mesh="$(arg use_wing_mesh)" />
+
+  <xacro:fixedwing_ros2_control
+    name="fixedwing" prefix="$(arg prefix)" use_sim="$(arg use_sim)" />
+  <xacro:fixedwing_simulation prefix="$(arg prefix)"/>
+</robot>

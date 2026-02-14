@@ -1,0 +1,418 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="fixedwing" params="prefix use_wing_mesh:=^|false">
+
+    <material name="gray">
+      <color rgba="0.5 0.5 0.5 1.0"/>
+    </material>
+    <material name="white">
+      <color rgba="1.0 1.0 1.0 1.0"/>
+    </material>
+
+    <collision_material name="wheel">
+      <friction static="0.0" dynamic="0.0"/>
+    </collision_material>
+
+    <collision_material name="body">
+      <friction static="0.0" dynamic="0.0"/>
+    </collision_material>
+
+    <aerodynamics>
+      <fluid_medium>auto</fluid_medium>
+      <fluid_density>1.225</fluid_density>
+      <air_density>1.225</air_density>
+      <water_density>1027</water_density>
+    </aerodynamics>
+
+    <xacro:macro name="wheel_macro" params="parent wheel_name xyz">
+      <joint name="${prefix}${wheel_name}_joint" type="continuous">
+        <axis xyz="0 0 1" />
+        <parent link="${parent}"/>
+        <child link="${prefix}${wheel_name}_link"/>
+        <origin xyz="${xyz}" rpy="${radians(-90)} 0 0"/>
+        <stiffness>0.0</stiffness>
+        <damping>30000.0</damping>
+      </joint>
+      <link name="${prefix}${wheel_name}_link">
+        <inertial>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <!-- ホイール: r=0.06m, l=0.03m, m=0.1kg -->
+          <!-- Ixx=Iyy=(1/12)*m*(3r²+l²), Izz=(1/2)*m*r² -->
+          <mass value="0.1"/>
+          <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.00018"/>
+        </inertial>
+        <visual>
+          <geometry>
+            <cylinder radius="0.06" length="0.03" />
+          </geometry>
+          <material name="gray"/>
+        </visual>
+        <collision>
+          <geometry>
+            <cylinder radius="0.06" length="0.03" />
+          </geometry>
+          <collision_material name="wheel"/>
+        </collision>
+      </link>
+    </xacro:macro>
+
+    <link name="${prefix}base_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.00005"/>
+        <inertia ixx="0.00000005" ixy="0.0" ixz="0.0" iyy="0.00000005" iyz="0.0" izz="0.00000005"/>
+      </inertial>
+    </link>
+
+    <joint name="${prefix}fuselage_joint" type="fixed">
+      <parent link="${prefix}base_link"/>
+      <child link="${prefix}fuselage_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+    <link name="${prefix}fuselage_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <!-- 胴体: 1.2m × 0.15m × 0.15m, m=3.0kg -->
+        <!-- I = (1/12)*m*(a²+b²) -->
+        <!-- Ixx(roll)=0.011, Iyy(pitch)=0.366, Izz(yaw)=0.366 -->
+        <mass value="3.0"/>
+        <inertia ixx="0.011" ixy="0.0" ixz="0.0" iyy="0.366" iyz="0.0" izz="0.366"/>
+      </inertial>
+      <visual>
+        <origin xyz="0.0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="1.2 0.15 0.15" />
+        </geometry>
+        <material name="white"/>
+      </visual>
+      <collision>
+        <origin xyz="0.0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="1.2 0.15 0.15" />
+        </geometry>
+        <collision_material name="body"/>
+      </collision>
+    </link>
+
+    <joint name="${prefix}left_wing_joint" type="fixed">
+      <parent link="${prefix}fuselage_link"/>
+      <child link="${prefix}left_wing_link"/>
+      <!-- 上反角5°のみ（ピッチ回転を削除）-->
+      <origin xyz="0.1 0.6 0.0" rpy="0.0873 0 0"/>
+    </joint>
+    <link name="${prefix}left_wing_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <!-- 翼: chord=0.6m, span=1.8m, 厚さ≈0.03m, m=0.5kg -->
+        <!-- ローカル座標: X=span, Y=厚さ, Z=chord -->
+        <!-- Ixx=0.015, Iyy=0.15, Izz=0.135 -->
+        <mass value="0.5"/>
+        <inertia ixx="0.015" ixy="0.0" ixz="0.0" iyy="0.15" iyz="0.0" izz="0.135"/>
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="file://$(find fixedwing_description)/meshes/wing_left.stl" scale="1 1 1" />
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <material name="gray"/>
+      </visual>
+      <collision>
+        <aerodynamic_surface>
+          <chord>0.6</chord>
+          <span>1.8</span>
+          <lift_slope>6.28</lift_slope>
+          <zero_lift_aoa>-4</zero_lift_aoa>
+          <stall_angle_high>20</stall_angle_high>
+          <stall_angle_low>-20</stall_angle_low>
+          <skin_friction>0.015</skin_friction>
+          <!-- 媒質別の表面摩擦 -->
+          <skin_friction_air>0.015</skin_friction_air>
+          <skin_friction_water>0.0075</skin_friction_water>
+          <flap_fraction>0.2</flap_fraction>
+          <control_surface type="roll" multiplier="1.0" invert_span_direction="true"/>
+
+          <blade_element_theory>
+            <num_elements>8</num_elements>
+            <induced_velocity_model>none</induced_velocity_model>
+            <taper_ratio>1.0</taper_ratio>
+            <twist_root>2</twist_root>
+            <twist_tip>-2</twist_tip>
+          </blade_element_theory>
+        </aerodynamic_surface>
+        <geometry>
+          <mesh filename="file://$(find fixedwing_description)/meshes/wing_left.stl" scale="1 1 1" />
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <collision_material name="body"/>
+      </collision>
+    </link>
+
+    <joint name="${prefix}right_wing_joint" type="fixed">
+      <parent link="${prefix}fuselage_link"/>
+      <child link="${prefix}right_wing_link"/>
+      <!-- 上反角5°のみ（ピッチ回転を削除）-->
+      <origin xyz="0.1 -0.6 0.0" rpy="-0.0873 0 0"/>
+    </joint>
+    <link name="${prefix}right_wing_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <!-- 翼: chord=0.6m, span=1.8m, 厚さ≈0.03m, m=0.5kg -->
+        <!-- ローカル座標: X=span, Y=厚さ, Z=chord -->
+        <!-- Ixx=0.015, Iyy=0.15, Izz=0.135 -->
+        <mass value="0.5"/>
+        <inertia ixx="0.015" ixy="0.0" ixz="0.0" iyy="0.15" iyz="0.0" izz="0.135"/>
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="file://$(find fixedwing_description)/meshes/wing_right.stl" scale="1 1 1" />
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <material name="gray"/>
+      </visual>
+      <collision>
+        <aerodynamic_surface>
+          <chord>0.6</chord>
+          <span>1.8</span>
+          <lift_slope>6.28</lift_slope>
+          <zero_lift_aoa>-4</zero_lift_aoa>
+          <stall_angle_high>20</stall_angle_high>
+          <stall_angle_low>-20</stall_angle_low>
+          <skin_friction>0.015</skin_friction>
+          <!-- 媒質別の表面摩擦 -->
+          <skin_friction_air>0.015</skin_friction_air>
+          <skin_friction_water>0.0075</skin_friction_water>
+          <flap_fraction>0.2</flap_fraction>
+          <control_surface type="roll" multiplier="-1.0" invert_span_direction="false"/>
+
+          <blade_element_theory>
+            <num_elements>8</num_elements>
+            <induced_velocity_model>none</induced_velocity_model>
+            <taper_ratio>1.0</taper_ratio>
+            <twist_root>2</twist_root>
+            <twist_tip>-2</twist_tip>
+          </blade_element_theory>
+        </aerodynamic_surface>
+        <geometry>
+          <mesh filename="file://$(find fixedwing_description)/meshes/wing_right.stl" scale="1 1 1" />
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <collision_material name="body"/>
+      </collision>
+    </link>
+
+    <joint name="${prefix}propeller_joint" type="continuous">
+      <axis xyz="0 0 1"/>
+      <parent link="${prefix}fuselage_link"/>
+      <child link="${prefix}propeller_link"/>
+      <origin xyz="0.6 0.0 0.0" rpy="0 1.57 0"/>
+      <stiffness>0.0</stiffness>
+      <damping>30000.0</damping>
+    </joint>
+    <link name="${prefix}propeller_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.3"/>
+        <inertia ixx="0.00008" ixy="0.0" ixz="0.0" iyy="0.000008" iyz="0.0" izz="0.000008"/>
+      </inertial>
+      <visual>
+        <geometry>
+          <cylinder radius="0.02" length="0.02"/>
+        </geometry>
+        <material name="gray"/>
+      </visual>
+    </link>
+<!--
+    <joint name="${prefix}propeller_blade_1_joint" type="fixed">
+      <parent link="${prefix}propeller_link"/>
+      <child link="${prefix}propeller_blade_1_link"/>
+      <origin xyz="0 0.064 0" rpy="0 0 3.14159"/>
+    </joint>
+    <link name="${prefix}propeller_blade_1_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.0005"/>
+        <inertia ixx="0.000002" ixy="0.0" ixz="0.0" iyy="0.000002" iyz="0.0" izz="0.000004"/>
+      </inertial>
+      <visual>
+        <geometry>
+          <box size="0.04 0.128 0.005"/>
+        </geometry>
+        <material name="gray"/>
+      </visual>
+      <collision>
+        <aerodynamic_surface>
+          <chord>0.04</chord>
+          <span>0.128</span>
+          <lift_slope>5.7</lift_slope>
+          <zero_lift_aoa>0</zero_lift_aoa>
+          <stall_angle_high>12</stall_angle_high>
+          <stall_angle_low>-12</stall_angle_low>
+          <skin_friction>0.02</skin_friction>
+          <skin_friction_air>0.02</skin_friction_air>
+          <skin_friction_water>0.01</skin_friction_water>
+
+          <blade_element_theory>
+            <num_elements>16</num_elements>
+            <induced_velocity_model>none</induced_velocity_model>
+            <taper_ratio>1.0</taper_ratio>
+            <twist_root>25</twist_root>
+            <twist_tip>5</twist_tip>
+          </blade_element_theory>
+        </aerodynamic_surface>
+        <geometry>
+          <box size="0.04 0.128 0.005"/>
+        </geometry>
+        <collision_material name="body"/>
+      </collision>
+    </link>
+
+    <joint name="${prefix}propeller_blade_2_joint" type="fixed">
+      <parent link="${prefix}propeller_link"/>
+      <child link="${prefix}propeller_blade_2_link"/>
+      <origin xyz="0 -0.064 0" rpy="0 0 0"/>
+    </joint>
+    <link name="${prefix}propeller_blade_2_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.0005"/>
+        <inertia ixx="0.000002" ixy="0.0" ixz="0.0" iyy="0.000002" iyz="0.0" izz="0.000004"/>
+      </inertial>
+      <visual>
+        <geometry>
+          <box size="0.04 0.128 0.005"/>
+        </geometry>
+        <material name="gray"/>
+      </visual>
+      <collision>
+        <aerodynamic_surface>
+          <chord>0.04</chord>
+          <span>0.128</span>
+          <lift_slope>5.7</lift_slope>
+          <zero_lift_aoa>0</zero_lift_aoa>
+          <stall_angle_high>12</stall_angle_high>
+          <stall_angle_low>-12</stall_angle_low>
+          <skin_friction>0.02</skin_friction>
+          <skin_friction_air>0.02</skin_friction_air>
+          <skin_friction_water>0.01</skin_friction_water>
+
+          <blade_element_theory>
+            <num_elements>16</num_elements>
+            <induced_velocity_model>none</induced_velocity_model>
+            <taper_ratio>1.0</taper_ratio>
+            <twist_root>25</twist_root>
+            <twist_tip>5</twist_tip>
+          </blade_element_theory>
+        </aerodynamic_surface>
+        <geometry>
+          <box size="0.04 0.128 0.005"/>
+        </geometry>
+        <collision_material name="body"/>
+      </collision>
+    </link>
+-->
+    <joint name="${prefix}horizontal_tail_joint" type="fixed">
+      <parent link="${prefix}fuselage_link"/>
+      <child link="${prefix}horizontal_tail_link"/>
+      <!-- 後方に移動してテールモーメントアームを増加 -->
+      <origin xyz="-0.7 0 0.05" rpy="0 0 0"/>
+    </joint>
+    <link name="${prefix}horizontal_tail_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <!-- 水平尾翼: 0.35m(前後) × 1.4m(左右) × 0.02m(厚さ), m=0.15kg -->
+        <!-- Ixx=0.0245, Iyy=0.0015, Izz=0.027 -->
+        <mass value="0.15"/>
+        <inertia ixx="0.0245" ixy="0.0" ixz="0.0" iyy="0.0015" iyz="0.0" izz="0.027"/>
+      </inertial>
+      <visual>
+        <geometry>
+          <!-- URDF座標系: X=前後(chord), Y=左右(span), Z=上下(thickness) -->
+          <box size="0.35 1.4 0.02" />
+        </geometry>
+        <material name="gray"/>
+      </visual>
+      <collision>
+        <aerodynamic_surface>
+          <chord>0.35</chord>
+          <span>1.4</span>
+          <lift_slope>5.8</lift_slope>
+          <zero_lift_aoa>-2</zero_lift_aoa>
+          <stall_angle_high>20</stall_angle_high>
+          <stall_angle_low>-20</stall_angle_low>
+          <skin_friction>0.015</skin_friction>
+          <skin_friction_air>0.015</skin_friction_air>
+          <skin_friction_water>0.0075</skin_friction_water>
+          <flap_fraction>0.25</flap_fraction>
+          <control_surface type="pitch" multiplier="0.1"/>
+
+          <blade_element_theory>
+            <num_elements>8</num_elements>
+            <induced_velocity_model>none</induced_velocity_model>
+            <taper_ratio>1.0</taper_ratio>
+            <twist_root>0</twist_root>
+            <twist_tip>0</twist_tip>
+          </blade_element_theory>
+        </aerodynamic_surface>
+        <geometry>
+          <box size="0.35 1.4 0.02" />
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="${prefix}vertical_tail_joint" type="fixed">
+      <parent link="${prefix}fuselage_link"/>
+      <child link="${prefix}vertical_tail_link"/>
+      <!-- 後方に移動してヨー安定性を向上 -->
+      <origin xyz="-0.7 0 0.2" rpy="1.5708 0 0"/>
+    </joint>
+    <link name="${prefix}vertical_tail_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <!-- 垂直尾翼: 0.25m(前後) × 0.02m(厚さ) × 0.35m(高さ), m=0.08kg -->
+        <!-- Ixx=0.00082, Iyy=0.0012, Izz=0.00042 -->
+        <mass value="0.08"/>
+        <inertia ixx="0.00082" ixy="0.0" ixz="0.0" iyy="0.00042" iyz="0.0" izz="0.0012"/>
+      </inertial>
+      <visual>
+        <!-- visualは回転なし（見た目は元のまま） -->
+        <geometry>
+          <!-- URDF座標系: X=前後(chord), Y=厚さ(thickness), Z=高さ(span) -->
+          <!-- 垂直尾翼は元々Z方向にスパンがある形状 -->
+          <box size="0.35 0.25 0.02" />
+        </geometry>
+        <material name="gray"/>
+      </visual>
+      <collision>
+        <aerodynamic_surface>
+          <chord>0.25</chord>
+          <span>0.35</span>
+          <lift_slope>5.2</lift_slope>
+          <zero_lift_aoa>0</zero_lift_aoa>
+          <stall_angle_high>20</stall_angle_high>
+          <stall_angle_low>-20</stall_angle_low>
+          <skin_friction>0.015</skin_friction>
+          <skin_friction_air>0.015</skin_friction_air>
+          <skin_friction_water>0.0075</skin_friction_water>
+          <flap_fraction>0.25</flap_fraction>
+          <control_surface type="yaw" multiplier="0.5"/>
+
+          <blade_element_theory>
+            <num_elements>8</num_elements>
+            <induced_velocity_model>none</induced_velocity_model>
+            <taper_ratio>1.0</taper_ratio>
+            <twist_root>0</twist_root>
+            <twist_tip>0</twist_tip>
+          </blade_element_theory>
+        </aerodynamic_surface>
+        <geometry>
+          <box size="0.35 0.25 0.02" />
+        </geometry>
+      </collision>
+    </link>
+
+    <xacro:wheel_macro parent="${prefix}fuselage_link" wheel_name="left_wheel" xyz="0.2 0.2 -0.1"/>
+    <xacro:wheel_macro parent="${prefix}fuselage_link" wheel_name="right_wheel" xyz="0.2 -0.2 -0.1"/>
+
+  </xacro:macro>
+</robot>
