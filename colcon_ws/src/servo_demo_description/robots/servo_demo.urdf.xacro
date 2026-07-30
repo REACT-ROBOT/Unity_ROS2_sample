@@ -1,0 +1,164 @@
+<?xml version="1.0" ?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="$(arg robot_name)">
+  <xacro:arg name="robot_name" default="ServoDemo"/>
+  <xacro:arg name="use_sim" default="false"/>
+
+  <xacro:if value="$(arg use_sim)">
+    <xacro:include filename="$(find servo_demo_description)/simulation/servo_demo.simulation.xacro"/>
+    <xacro:servo_demo_simulation name="$(arg robot_name)"/>
+  </xacro:if>
+
+  <material name="stand_gray">
+    <color rgba="0.35 0.35 0.35 1.0"/>
+  </material>
+  <material name="servo_blue">
+    <color rgba="0.15 0.4 1.0 1.0"/>
+  </material>
+  <material name="servo_red">
+    <color rgba="1.0 0.2 0.15 1.0"/>
+  </material>
+  <material name="arm_white">
+    <color rgba="0.92 0.92 0.92 1.0"/>
+  </material>
+
+  <!-- Root link named "world" is fixed (immovable) by the simulator -->
+  <link name="world">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.001"/>
+      <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
+    </inertial>
+  </link>
+
+  <joint name="stand_joint" type="fixed">
+    <parent link="world"/>
+    <child link="stand_link"/>
+    <origin xyz="0 0 0.15" rpy="0 0 0"/>
+  </joint>
+  <link name="stand_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="2.0"/>
+      <inertia ixx="0.02" ixy="0.0" ixz="0.0" iyy="0.02" iyz="0.0" izz="0.02"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.24 0.30"/>
+      </geometry>
+      <material name="stand_gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.24 0.30"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!--
+    One servo + pendulum arm unit.
+    The arm points +x at q = 0 (horizontal, maximum gravity torque) and
+    swings in the x-z plane about the y axis.
+    Arm: rod 0.12 m (5 g) + tip weight 40 g -> max gravity torque ~0.05 N*m,
+    well below the SG90-like stall torque of 0.18 N*m.
+  -->
+  <xacro:macro name="servo_unit" params="id color y">
+    <joint name="${id}_mount_joint" type="fixed">
+      <parent link="stand_link"/>
+      <child link="${id}_servo_link"/>
+      <origin xyz="0.02 ${y} 0.10" rpy="0 0 0"/>
+    </joint>
+    <link name="${id}_servo_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.02"/>
+        <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.03 0.04 0.04"/>
+        </geometry>
+        <material name="${color}"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.03 0.04 0.04"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <!-- The arm link geometry points straight DOWN (-z) at q = 0, i.e. the
+         rest pose is the gravity equilibrium in the middle of the joint
+         range, far away from the limits (a link resting exactly ON a limit
+         can jam in this engine build). The joint frame itself is NOT
+         rotated - rotated joint frames confused the runtime importer (the
+         servo model then read a locked DOF).
+         The swing axis is x (the direction the servo boxes protrude), so
+         the arm swings PARALLEL to the stand plate; swinging about y would
+         drive the tip into the plate at |q|~0.19. -->
+    <joint name="${id}_joint" type="revolute">
+      <parent link="${id}_servo_link"/>
+      <child link="${id}_arm_link"/>
+      <origin xyz="0.025 0 0" rpy="0 0 0"/>
+      <axis xyz="1 0 0"/>
+      <!-- effort feeds Unity xDrive.forceLimit, which acts on the degree-based
+           drive: real torque limit [N*m] = effort * pi / 180. 10.3 = 0.18 N*m
+           (SG90 stall). The cheap joint's motor limit is set in SI via
+           <servo_model><motor torque_limit>.
+           Joint limits: +-1.7 rad keeps the hanging pose (+-1.57) off the
+           limit surface (a link resting exactly ON a limit can jam in this
+           engine build; ServoJointModel carries an un-jam workaround) and
+           stops the arm before the tip can swing behind the stand plate
+           (tip-plate collision starts around 1.9 rad). -->
+      <limit lower="-1.7" upper="1.7" effort="${0.18 * 180 / pi}" velocity="8.0"/>
+      <!-- Baseline (ideal) position servo: P = 3 N*m/rad with near-critical
+           damping D = 0.08 N*m/(rad/s) (zeta ~ 0.9 for the arm inertia), so
+           the reference joint tracks smoothly with no overshoot or ringing.
+           P cannot be raised much further: the plain xDrive obeys the same
+           50 Hz discrete stability limit as the transmission (K=20 was
+           measured to self-oscillate at ~+-0.1 rad).
+           The engine scales rotational drive stiffness/damping by pi/180
+           (measured from static sag), so SI values are written with a
+           x180/pi compensation, like effort above.
+           For cheap_joint the servo model handles this internally. -->
+      <drive stiffness="${3.0 * 180 / pi}" damping="${0.08 * 180 / pi}"/>
+    </joint>
+    <link name="${id}_arm_link">
+      <inertial>
+        <origin xyz="0 0 -0.113" rpy="0 0 0"/>
+        <mass value="0.045"/>
+        <inertia ixx="0.000024" ixy="0.0" ixz="0.0" iyy="0.000024" iyz="0.0" izz="0.000003"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 -0.06" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.004" length="0.12"/>
+        </geometry>
+        <material name="arm_white"/>
+      </visual>
+      <visual>
+        <origin xyz="0 0 -0.12" rpy="0 0 0"/>
+        <geometry>
+          <sphere radius="0.012"/>
+        </geometry>
+        <material name="${color}"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 -0.12" rpy="0 0 0"/>
+        <geometry>
+          <sphere radius="0.012"/>
+        </geometry>
+      </collision>
+    </link>
+  </xacro:macro>
+
+  <!-- Blue: ideal servo (plain xDrive), Red: cheap SG90-like servo.
+       y separation 0.18 keeps the swinging arms (swing plane is y-z)
+       clear of each other at full deflection. -->
+  <xacro:servo_unit id="ideal" color="servo_blue" y="-0.09"/>
+  <xacro:servo_unit id="cheap" color="servo_red" y="0.09"/>
+
+</robot>

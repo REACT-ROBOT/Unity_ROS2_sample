@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="servo_demo_simulation" params="name">
+
+    <!-- =============== ros2_control =============== -->
+    <ros2_control name="${name}" type="system">
+      <hardware>
+        <plugin>topic_based_ros2_control/TopicBasedSystem</plugin>
+        <param name="joint_commands_topic">/${name}/joint_command</param>
+        <param name="joint_states_topic">/${name}/joint_states</param>
+        <!-- sum_wrapped_joint_states は使わない: スポーン直後の過渡状態を
+             ラップ回転と誤検出して恒久オフセットをラッチし、以後の指令全体が
+             ずれてアームがリミットへ誘導される (実測 ~2.1 rad オフセット)。
+             この腕は連続回転しないため不要。 -->
+      </hardware>
+
+      <joint name="ideal_joint">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+      <joint name="cheap_joint">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+    </ros2_control>
+
+    <!-- =============== Servo motor model (v0.9.2) =============== -->
+    <!--
+      Cheap SG90-like servo. Parameters stay inside the range validated by
+      ServoPendulumTests/ServoDemoCapture (Kd, transmission K/D scaled to
+      this arm) so the ringing decays into stiction instead of blowing up:
+
+      motor:
+        p_gain 3.0 / d_gain 0.01 : underdamped PD (zeta ~ 0.09)
+                                   -> ~5 Hz ringing for 1-2 s after steps
+        torque_limit 0.18 N*m    : SG90 stall torque (~1.8 kgf*cm), SI units
+                                   (the rotor model works in rad internally)
+        inertia 2e-3 kg*m^2      : reflected rotor inertia through the gears
+      friction (motor/gearbox side, Stribeck):
+        static 0.02 > dynamic 0.01, stribeck_velocity 0.1
+                                   -> stick-slip judder during slow sweeps
+                                      and a sticky dead zone near the goal
+      backlash:
+        width 0.052 rad (~3 deg total) plastic gear play.
+        NOTE: transmission stiffness is limited by the 50 Hz physics rate.
+        The rotor and the joint exchange state with one physics step of
+        delay, so the coupled mode must stay below ~1/dt: the physically
+        realistic K=400 N*m/rad self-oscillates. K=2 is stable and still
+        keeps the gap visible (static sag tau_g/K ~ 0.025 rad ~ half gap).
+        static friction is kept small: the Karnopp stick band around the
+        saturated stall torque (|tau_max - K*windup| < static) otherwise
+        deadlocks the rotor against the wound-up transmission.
+    -->
+    <!-- stick-slip visibility: the judder amplitude during slow sweeps is
+         roughly (static - dynamic) / K_series with
+         K_series = 1/(1/p_gain + 1/stiffness). p=4, static=0.06, dyn=0.015
+         gives ~34 mrad jumps every ~0.3 s at the demo sweep speed
+         (0.11 rad/s) - clearly visible - while targets stay reachable
+         (steady PD error tau_s/p ~ 15 mrad, no Karnopp deadlock). -->
+    <servo_model joint="cheap_joint">
+      <motor p_gain="4.0" d_gain="0.02" torque_limit="0.18" inertia="2e-3"/>
+      <friction static="0.06" dynamic="0.015" stribeck_velocity="0.1" viscous="0.08"/>
+      <backlash width="0.09" stiffness="2.0" damping="0.5"/>
+    </servo_model>
+
+  </xacro:macro>
+
+</robot>
