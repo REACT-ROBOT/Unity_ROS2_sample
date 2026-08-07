@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>simulation_service_tests</name>
+  <version>0.1.0</version>
+  <description>
+    Unity_ROS2_Robot_Simulator が simulation_interfaces のサービスとして公開している
+    機能 (spawn_entity / set_simulation_state / get_simulation_state /
+    reset_simulation / step_simulation) が仕様どおり動作するかを、
+    実機のシミュレータへ接続して検証する適合性テストスイート。
+  </description>
+  <maintainer email="hijimasa@gmail.com">Masaaki Hijikata</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>simulation_interfaces</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>builtin_interfaces</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

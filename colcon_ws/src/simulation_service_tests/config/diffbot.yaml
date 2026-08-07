@@ -1,0 +1,42 @@
+# 差動二輪ロボット (diffbot) プロファイル。
+#
+# 車輪へ速度指令を送るとルートリンクが動くので、reset_simulation で
+# 「関節が戻るか」と「ルート姿勢が戻るか」を同時に検証できる。既定はこれ。
+name: diffbot
+robot_name: diffbot
+
+xacro_package: diffbot_description
+xacro_file: robots/diffbot.urdf.xacro
+xacro_mappings:
+  use_sim: 'true'
+
+# URDF の <ros2_control><hardware> で指定されているトピック名に合わせる
+joint_states_topic: /diffbot/joint_states
+joint_command_topic: /diffbot/joint_command
+ground_truth_topic: /ground_truth
+
+spawn_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+# 車輪は continuous なので速度指令で回す
+command_mode: velocity
+test_joints:
+  - left_wheel_joint
+  - right_wheel_joint
+command_amplitude: 3.0      # [rad/s]
+command_duration: 3.0       # [s] 送り続ける時間
+velocity_follow_ratio: 0.3  # 実速度が指令の 30% 以上出ていれば追従とみなす
+motion_threshold: 0.2       # [rad] / [m] これ以上動けば「動いた」
+
+# 連続回転関節は絶対値でなく差分で見るので、位置許容は緩め
+position_tolerance: 0.5
+absolute_limit: 1000.0
+
+joint_reset_tolerance: 0.3  # [rad] リセット後に車輪角が戻るべき範囲
+pose_reset_tolerance: 0.05  # [m]  リセット後にルートが戻るべき範囲
+base_moves_under_command: true
+
+spawn_settle_time: 3.0      # LiDAR/カメラの初期化を含むので長めに取る
+reset_settle_time: 1.0
+topic_timeout: 10.0
+service_timeout: 20.0
+reset_cycles: 3

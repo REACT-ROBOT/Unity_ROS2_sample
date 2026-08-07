@@ -1,0 +1,39 @@
+# サーボデモ (固定台 + 2 関節) プロファイル。
+#
+# センサを積んでいないぶん立ち上がりが速く、位置指令の追従がそのまま
+# 「指令を受け付けているか」の指標になる。CI 向けの軽い構成。
+# 台が world リンクで固定されているため、ルート姿勢のリセット検証 (C5/D4) は
+# 実質的に無効になる点に注意。
+name: servo_demo
+robot_name: ServoDemo
+
+xacro_package: servo_demo_description
+xacro_file: robots/servo_demo.urdf.xacro
+xacro_mappings:
+  use_sim: 'true'
+  robot_name: ServoDemo
+
+joint_states_topic: /ServoDemo/joint_states
+joint_command_topic: /ServoDemo/joint_command
+ground_truth_topic: /ground_truth
+
+spawn_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+command_mode: position
+test_joints:
+  - ideal_joint           # 素の xDrive 側。摩擦モデルが挟まらないぶん判定が素直
+command_amplitude: 0.6    # [rad] 現在位置からずらす量
+command_duration: 3.0
+absolute_limit: 1.5       # URDF の可動範囲 ±1.7 rad より内側に収める
+position_tolerance: 0.15  # [rad] 指令値との許容誤差
+motion_threshold: 0.1     # [rad] これ以上動けば「反応した」
+
+joint_reset_tolerance: 0.1
+pose_reset_tolerance: 0.02
+base_moves_under_command: false
+
+spawn_settle_time: 2.0
+reset_settle_time: 1.0
+topic_timeout: 8.0
+service_timeout: 15.0
+reset_cycles: 3
