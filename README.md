@@ -36,6 +36,14 @@ colcon build
 source install/setup.bash
 ```
 
+> **Note**: `colcon_ws` cannot be shared between distros. Wipe the build products before
+> switching between humble and jazzy — the Python versions differ (3.10 / 3.12), and leftovers
+> make message type support fail to load with
+> `UnsupportedTypeSupport: Could not import 'rosidl_typesupport_c'`.
+> ```
+> rm -rf build install log && colcon build
+> ```
+
 ## Usage
 1. Run the simulation scene in Unity:
 ```

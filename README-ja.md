@@ -36,6 +36,14 @@ colcon build
 source install/setup.bash
 ```
 
+> **注意**: `colcon_ws` は distro 間で共有できません。humble と jazzy を切り替えるときは
+> 先に成果物を消してください。Python のバージョン (3.10 / 3.12) が違うため、
+> 残っているとメッセージ型の読み込みで
+> `UnsupportedTypeSupport: Could not import 'rosidl_typesupport_c'` になります。
+> ```
+> rm -rf build install log && colcon build
+> ```
+
 ## 使用方法
 1. Unityでシミュレーションシーンを実行します。
 ```
