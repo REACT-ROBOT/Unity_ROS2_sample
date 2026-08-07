@@ -63,6 +63,26 @@ docker exec -it ros-humble-unity-sample /bin/bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
 
+## Service conformance test
+An automated suite checks that the features the simulator exposes through
+`simulation_interfaces` services (`spawn_entity` / `set_simulation_state` /
+`get_simulation_state` / `reset_simulation` / `step_simulation`) behave as specified.
+It exists in particular to reproduce and isolate the class of bug where the robot stops
+accepting commands after `reset_simulation` is called.
+
+Run it inside the container:
+```
+cd ~/colcon_ws
+colcon build --packages-select simulation_service_tests simulation_ros2_utils
+source install/setup.bash
+./scripts/service_conformance_test.sh
+```
+
+The script brings up the ROS-TCP-Endpoint and the simulator, runs the suite, and tears it down.
+Exit codes: 0 = everything as expected, 1 = defects found, 2 = could not run.
+
+See [colcon_ws/src/simulation_service_tests/README.md](colcon_ws/src/simulation_service_tests/README.md) for details.
+
 ## Key Features
 - Bidirectional communication with Unity via ROS2 topics
 - Physics simulation environment
