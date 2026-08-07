@@ -1,6 +1,6 @@
 # simulation_service_tests
 
-Unity_ROS2_Robot_Simulator が `simulation_interfaces` のサービスとして公開している機能が
+Unity_ROS2_Robot_Simulator が `simulation_interfaces` (2.1.0) のサービスとして公開している機能が
 仕様どおりに動くかを、実際に動いているシミュレータへ接続して検証する適合性テストスイート。
 
 とくに **「reset_simulation を呼んだあとロボットが指令を受け付けなくなる」** 種類の
@@ -16,6 +16,7 @@ Unity_ROS2_Robot_Simulator が `simulation_interfaces` のサービスとして�
 | D1–D10 | **reset_simulation の全スコープ**。エンティティ生存、関節・姿勢の復元、リセット後の指令受付、サービス生存、デスポーン、再スポーン、時刻リセット、反復安定性 |
 | E1–E2 | `STATE_STOPPED` でのデスポーンと、その後の再スポーン |
 | F1–F2 | `step_simulation` の未対応表明、空シーンへのリセット |
+| G1–G5 | **simulation_interfaces 2.x**。`get_simulator_features` の申告内容、`Resource` によるスポーン、`spawn_entities` (複数生成・部分失敗の報告)、`entity_namespace` によるトピック分離 |
 
 ★ 印のシナリオ (D5 / D8 / D10) が報告されている不具合の直接検証にあたる。
 

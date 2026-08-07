@@ -22,11 +22,14 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
 from sensor_msgs.msg import JointState
-from simulation_interfaces.msg import SimulationState
+from simulation_interfaces.msg import Resource, SimulationState
+from simulation_interfaces.msg import SpawnEntity as SpawnEntityMsg
 from simulation_interfaces.srv import (
     GetSimulationState,
+    GetSimulatorFeatures,
     ResetSimulation,
     SetSimulationState,
+    SpawnEntities,
     SpawnEntity,
     StepSimulation,
 )
@@ -42,6 +45,16 @@ RESULT_OPERATION_FAILED = 4
 ALREADY_IN_TARGET_STATE = 101
 STATE_TRANSITION_ERROR = 102
 INCORRECT_TRANSITION = 103
+
+# SpawnEntity / SpawnResult 固有の拡張コード (simulation_interfaces 2.x)
+NAME_NOT_UNIQUE = 101
+UNSUPPORTED_FORMAT = 103
+NO_RESOURCE = 104
+RESOURCE_PARSE_ERROR = 106
+MISSING_ASSETS = 107
+
+# SpawnEntities 固有の拡張コード
+ENTITIES_SPAWN_FAILED = 150
 
 STATE_NAMES = {
     SimulationState.STATE_STOPPED: 'STOPPED',
@@ -62,8 +75,33 @@ RESULT_NAMES = {
 }
 
 
+# spawn 系サービスの追加コード。101/103 などは SetSimulationState の拡張コードと
+# 数値が重なるため、result_name とは別の辞書で引く。
+SPAWN_RESULT_NAMES = {
+    RESULT_FEATURE_UNSUPPORTED: 'FEATURE_UNSUPPORTED(0)',
+    RESULT_OK: 'OK(1)',
+    RESULT_NOT_FOUND: 'NOT_FOUND(2)',
+    RESULT_INCORRECT_STATE: 'INCORRECT_STATE(3)',
+    RESULT_OPERATION_FAILED: 'OPERATION_FAILED(4)',
+    NAME_NOT_UNIQUE: 'NAME_NOT_UNIQUE(101)',
+    102: 'NAME_INVALID(102)',
+    UNSUPPORTED_FORMAT: 'UNSUPPORTED_FORMAT(103)',
+    NO_RESOURCE: 'NO_RESOURCE(104)',
+    105: 'NAMESPACE_INVALID(105)',
+    RESOURCE_PARSE_ERROR: 'RESOURCE_PARSE_ERROR(106)',
+    MISSING_ASSETS: 'MISSING_ASSETS(107)',
+    108: 'UNSUPPORTED_ASSETS(108)',
+    109: 'INVALID_POSE(109)',
+    ENTITIES_SPAWN_FAILED: 'ENTITIES_SPAWN_FAILED(150)',
+}
+
+
 def result_name(code):
     return RESULT_NAMES.get(code, f'UNKNOWN({code})')
+
+
+def spawn_result_name(code):
+    return SPAWN_RESULT_NAMES.get(code, f'UNKNOWN({code})')
 
 
 def state_name(code):
@@ -134,6 +172,10 @@ class SimHarness(Node):
                 SpawnEntity, profile.spawn_service),
             'step_simulation': self.create_client(
                 StepSimulation, profile.step_service),
+            'spawn_entities': self.create_client(
+                SpawnEntities, profile.spawn_entities_service),
+            'get_simulator_features': self.create_client(
+                GetSimulatorFeatures, profile.features_service),
         }
 
         # ROS-TCP-Endpoint 側の publisher は既定 QoS (RELIABLE / VOLATILE / depth 10)
@@ -222,29 +264,94 @@ class SimHarness(Node):
                 break
         return self._call('step_simulation', req, timeout)
 
-    def spawn(self, urdf_path, name=None, pose=None, timeout=None):
+    def _fill_pose(self, pose_stamped, pose):
+        pose_stamped.header.stamp = TimeMsg()
+        pose_stamped.header.frame_id = ''
+        pose_stamped.pose.position.x = float(pose[0])
+        pose_stamped.pose.position.y = float(pose[1])
+        pose_stamped.pose.position.z = float(pose[2])
+        qx, qy, qz, qw = euler_to_quaternion(float(pose[3]), float(pose[4]), float(pose[5]))
+        pose_stamped.pose.orientation.x = qx
+        pose_stamped.pose.orientation.y = qy
+        pose_stamped.pose.orientation.z = qz
+        pose_stamped.pose.orientation.w = qw
+
+    def _resource(self, urdf_path, with_string=True):
+        """simulation_interfaces 2.0.0 以降の Resource を組み立てる。
+
+        uri が空でないとき resource_string は無視される決まりなので、
+        両方入れておいても uri が優先される。
+        """
+        resource = Resource()
+        resource.uri = 'file://' + os.path.abspath(urdf_path)
+        if with_string and urdf_path.endswith('.urdf'):
+            with open(urdf_path, 'r') as f:
+                resource.resource_string = f.read()
+        return resource
+
+    def spawn(self, urdf_path, name=None, pose=None, namespace='', timeout=None):
         p = self.profile
-        name = name or p.robot_name
-        pose = pose or p.spawn_pose
         req = SpawnEntity.Request()
-        req.name = name
-        req.uri = 'file://' + os.path.abspath(urdf_path)
+        req.name = name or p.robot_name
+        req.entity_resource = self._resource(urdf_path)
+        req.entity_namespace = namespace
+        req.allow_renaming = False
+        self._fill_pose(req.initial_pose, pose or p.spawn_pose)
+        return self._call('spawn_entity', req, timeout)
+
+    # ------------------------------------------------------------------
+    # トピック一覧 (名前空間の確認用)
+    # ------------------------------------------------------------------
+    def list_topics_with_prefix(self, prefix):
+        return sorted(name for name, _ in self.get_topic_names_and_types()
+                      if name.startswith(prefix))
+
+    def wait_for_topic(self, topic, timeout):
+        """トピックが discovery されるまで待つ。
+
+        ROS-TCP-Endpoint 側が publisher を登録して初めて ROS グラフに現れるので、
+        スポーン直後は少し待つ必要がある。
+        """
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if any(name == topic for name, _ in self.get_topic_names_and_types()):
+                return True
+            time.sleep(0.3)
+        return False
+
+    def spawn_many(self, entries, timeout=None):
+        """spawn_entities を叩く。
+
+        entries は ``(name, resource, pose)`` のリスト。resource には URDF の
+        パス (str) を渡せば Resource を組み立てるが、結果コードを確かめたい
+        ときは Resource をそのまま渡してもよい。
+        """
+        req = SpawnEntities.Request()
+        req.spawn_requests = []
+        for name, resource, pose in entries:
+            item = SpawnEntityMsg()
+            item.name = name
+            item.entity_resource = (
+                self._resource(resource) if isinstance(resource, str) else resource)
+            item.entity_namespace = ''
+            item.allow_renaming = False
+            self._fill_pose(item.initial_pose, pose)
+            req.spawn_requests.append(item)
+        return self._call('spawn_entities', req, timeout)
+
+    def spawn_raw(self, resource, name=None, pose=None, timeout=None):
+        """不正な Resource を送って結果コードを見るための素の呼び出し。"""
+        p = self.profile
+        req = SpawnEntity.Request()
+        req.name = name if name is not None else p.robot_name
+        req.entity_resource = resource
         req.entity_namespace = ''
         req.allow_renaming = False
-        if urdf_path.endswith('.urdf'):
-            with open(urdf_path, 'r') as f:
-                req.resource_string = f.read()
-        req.initial_pose.header.stamp = TimeMsg()
-        req.initial_pose.header.frame_id = ''
-        req.initial_pose.pose.position.x = float(pose[0])
-        req.initial_pose.pose.position.y = float(pose[1])
-        req.initial_pose.pose.position.z = float(pose[2])
-        qx, qy, qz, qw = euler_to_quaternion(float(pose[3]), float(pose[4]), float(pose[5]))
-        req.initial_pose.pose.orientation.x = qx
-        req.initial_pose.pose.orientation.y = qy
-        req.initial_pose.pose.orientation.z = qz
-        req.initial_pose.pose.orientation.w = qw
+        self._fill_pose(req.initial_pose, pose or p.spawn_pose)
         return self._call('spawn_entity', req, timeout)
+
+    def simulator_features(self, timeout=None):
+        return self._call('get_simulator_features', GetSimulatorFeatures.Request(), timeout)
 
     # ------------------------------------------------------------------
     # 状態遷移のショートカット

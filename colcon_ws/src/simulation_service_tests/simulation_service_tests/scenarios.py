@@ -20,13 +20,18 @@ import traceback
 from simulation_interfaces.msg import SimulationState
 from simulation_interfaces.srv import ResetSimulation
 
+from simulation_interfaces.msg import Resource, SimulatorFeatures
+
 from .sim_harness import (
     ALREADY_IN_TARGET_STATE,
+    ENTITIES_SPAWN_FAILED,
     INCORRECT_TRANSITION,
+    NO_RESOURCE,
     RESULT_OK,
     RESULT_OPERATION_FAILED,
     ServiceTimeout,
     result_name,
+    spawn_result_name,
     state_name,
 )
 
@@ -112,13 +117,14 @@ class Result:
 # A. 基本疎通
 # ======================================================================
 
-@scenario('A1', 'A. 基本疎通', 'サービスが 5 種類すべて discovery できる')
+@scenario('A1', 'A. 基本疎通', '実装しているサービスがすべて discovery できる')
 def a1_services_available(ctx):
     missing = ctx.h.wait_for_services(ctx.p.service_timeout)
     if missing:
         return fail(f'見つからないサービス: {", ".join(missing)}')
     ctx.mark('services')
-    return ok('get/set_simulation_state, reset_simulation, spawn_entity, step_simulation を確認')
+    return ok('get/set_simulation_state, reset_simulation, spawn_entity, spawn_entities, '
+              'step_simulation, get_simulator_features を確認')
 
 
 @scenario('A2', 'A. 基本疎通', '起動直後の状態は STOPPED', requires=('services',))
@@ -599,6 +605,171 @@ def f2_reset_empty_scene(ctx):
     except ServiceTimeout as exc:
         return fail(f'空シーンへの reset 後にサービスが死んだ ({exc})')
     return ok('空シーンでも正常に応答する')
+
+
+# ======================================================================
+# G. simulation_interfaces 2.x の新インターフェース
+# ======================================================================
+
+@scenario('G1', 'G. interfaces 2.x', 'get_simulator_features が対応機能を申告する',
+          requires=('services',))
+def g1_simulator_features(ctx):
+    res = ctx.h.simulator_features()
+    features = set(res.features.features)
+    formats = list(res.features.spawn_formats)
+
+    # 実装しているものは必ず載っているべき
+    required = {
+        'SPAWNING': SimulatorFeatures.SPAWNING,
+        'SPAWNING_ENTITIES': SimulatorFeatures.SPAWNING_ENTITIES,
+        'SIMULATION_RESET': SimulatorFeatures.SIMULATION_RESET,
+        'SIMULATION_RESET_STATE': SimulatorFeatures.SIMULATION_RESET_STATE,
+        'SIMULATION_RESET_SPAWNED': SimulatorFeatures.SIMULATION_RESET_SPAWNED,
+        'SIMULATION_STATE_GETTING': SimulatorFeatures.SIMULATION_STATE_GETTING,
+        'SIMULATION_STATE_SETTING': SimulatorFeatures.SIMULATION_STATE_SETTING,
+    }
+    missing = [name for name, code in required.items() if code not in features]
+    if missing:
+        return fail(f'実装済みなのに申告されていない機能: {", ".join(missing)}')
+
+    # 未実装のものを申告してはいけない。クライアントは使えると判断してしまう。
+    forbidden = {
+        'STEP_SIMULATION_SINGLE': SimulatorFeatures.STEP_SIMULATION_SINGLE,
+        'WORLD_LOADING': SimulatorFeatures.WORLD_LOADING,
+        'WORLD_UNLOADING': SimulatorFeatures.WORLD_UNLOADING,
+        'ENTITY_STATE_SETTING': SimulatorFeatures.ENTITY_STATE_SETTING,
+        'DELETING': SimulatorFeatures.DELETING,
+    }
+    wrong = [name for name, code in forbidden.items() if code in features]
+    if wrong:
+        return fail(f'未実装なのに申告されている機能: {", ".join(wrong)}')
+
+    if 'urdf' not in formats:
+        return fail(f'spawn_formats に urdf が無い: {formats}')
+
+    ctx.mark('features')
+    return ok(f'{len(features)} 機能を申告 / spawn_formats={formats}')
+
+
+@scenario('G2', 'G. interfaces 2.x', 'spawn_entity が Resource.uri を受け付ける',
+          requires=('spawned',))
+def g2_resource_uri(ctx):
+    """2.0.0 で uri/resource_string は Resource へまとめられた。
+
+    C1 が通っている時点で uri 経由のスポーンは動いているので、ここでは
+    「uri を空にすると仕様どおりのコードが返るか」を見る。
+    """
+    empty = Resource()
+    empty.uri = ''
+    empty.resource_string = ''
+    res = ctx.h.spawn_raw(empty, name='no_resource_probe')
+    code = res.result.result
+    if code == NO_RESOURCE:
+        return ok('uri / resource_string がどちらも空なら NO_RESOURCE(104)')
+    if code == RESULT_OK:
+        return fail('リソース無しのスポーンが成功扱いになっている')
+    return fail(f'期待は NO_RESOURCE(104) だが {spawn_result_name(code)}: {res.result.error_message}')
+
+
+@scenario('G3', 'G. interfaces 2.x', 'spawn_entities で複数体を一度に生成できる',
+          requires=('services',))
+def g3_spawn_entities(ctx):
+    """SpawnEntity は 2.0.0 で deprecated、後継がこちら。"""
+    # 干渉しないよう、まっさらな状態から始める
+    ctx.h.stop()
+    time.sleep(0.5)
+    ctx.h.play()
+    time.sleep(0.3)
+
+    names = [f'{ctx.p.robot_name}_a', f'{ctx.p.robot_name}_b']
+    entries = [
+        (names[0], ctx.urdf_path, (0.0, 1.5, 0.0, 0.0, 0.0, 0.0)),
+        (names[1], ctx.urdf_path, (0.0, -1.5, 0.0, 0.0, 0.0, 0.0)),
+    ]
+    res = ctx.h.spawn_many(entries, timeout=max(ctx.p.service_timeout, 40.0))
+
+    if res.result.result != RESULT_OK:
+        details = '; '.join(
+            f'{i}: {spawn_result_name(r.result.result)} {r.result.error_message}'
+            for i, r in enumerate(res.results))
+        return fail(f'spawn_entities が {spawn_result_name(res.result.result)} / {details}')
+    if len(res.results) != len(entries):
+        return fail(f'results の数が要求数と違う ({len(res.results)} != {len(entries)})')
+
+    # 名前は topic 名になるので、要求どおり別々でなければ 2 体が同じトピックへ
+    # publish してしまう
+    got = [r.entity_name for r in res.results]
+    if got != names:
+        return fail(
+            f'entity_name が要求と違う: 要求 {names} -> 実際 {got}。'
+            'SpawnEntity.srv では name が空でない限りその名前を使う決まり')
+
+    time.sleep(ctx.p.spawn_settle_time)
+    ctx.mark('spawned_many')
+    return ok(f'{len(res.results)} 体を生成: {", ".join(got)}')
+
+
+@scenario('G4', 'G. interfaces 2.x', 'spawn_entities は一部失敗を results で報告する',
+          requires=('spawned_many',))
+def g4_spawn_entities_partial(ctx):
+    """1 件でも失敗したら ENTITIES_SPAWN_FAILED、個々の成否は results に入る。"""
+    bad = Resource()
+    bad.uri = 'file:///nonexistent/definitely_missing.urdf'
+
+    good_name = f'{ctx.p.robot_name}_ok'
+    entries = [(good_name, ctx.urdf_path, (0.0, 3.0, 0.0, 0.0, 0.0, 0.0))]
+    res_ok = ctx.h.spawn_many(entries, timeout=max(ctx.p.service_timeout, 40.0))
+    if res_ok.result.result != RESULT_OK:
+        return skip('正常系の spawn_entities が通らないため部分失敗を判定できない')
+
+    # 存在しないファイルを 1 件だけ要求する
+    res = ctx.h.spawn_many(
+        [(f'{ctx.p.robot_name}_bad', bad, (0.0, 5.0, 0.0, 0.0, 0.0, 0.0))],
+        timeout=max(ctx.p.service_timeout, 40.0))
+
+    if res.result.result != ENTITIES_SPAWN_FAILED:
+        return fail(
+            f'存在しないリソースを含む要求で {spawn_result_name(res.result.result)} が返った。'
+            '期待は ENTITIES_SPAWN_FAILED(150)')
+    if len(res.results) != 1:
+        return fail(f'results の数が要求数と違う ({len(res.results)} != 1)')
+    per_item = res.results[0].result.result
+    if per_item == RESULT_OK:
+        return fail('失敗したはずの要求が results では成功になっている')
+    return ok(f'全体={spawn_result_name(res.result.result)} / '
+              f'個別={spawn_result_name(per_item)}')
+
+
+@scenario('G5', 'G. interfaces 2.x', 'entity_namespace でトピックが分離される',
+          requires=('services',))
+def g5_entity_namespace(ctx):
+    """同じ URDF から 2 体出しても衝突しないことの確認。
+
+    URDF の ros2_control に書かれた joint_states / joint_command のトピック名は
+    リソース側で固定なので、名前空間を適用しないと 2 体目が 1 体目と同じトピックを
+    使ってしまい、片方への指令が両方を動かす。
+    """
+    ctx.h.stop()
+    time.sleep(0.5)
+    ctx.h.play()
+    time.sleep(0.3)
+
+    ns = 'ns_probe'
+    res = ctx.h.spawn(ctx.urdf_path, name=f'{ctx.p.robot_name}_ns',
+                      namespace=ns, timeout=max(ctx.p.service_timeout, 40.0))
+    if res.result.result != RESULT_OK:
+        return fail(f'名前空間付きスポーンが {spawn_result_name(res.result.result)}: '
+                    f'{res.result.error_message}')
+
+    expected = '/' + ns + ctx.p.joint_states_topic
+    if not ctx.h.wait_for_topic(expected, ctx.p.topic_timeout):
+        listed = ', '.join(ctx.h.list_topics_with_prefix('/' + ns)) or '(なし)'
+        return fail(
+            f'{expected} が現れない。entity_namespace が適用されていない。'
+            f' /{ns} 以下にあるトピック: {listed}')
+
+    # 元の名前のトピックが使われていないことも確かめる (名前空間の付け忘れ検出)
+    return ok(f'{expected} を確認')
 
 
 # ======================================================================

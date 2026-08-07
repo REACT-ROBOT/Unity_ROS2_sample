@@ -31,6 +31,9 @@ class Profile:
         self.reset_service = d.get('reset_service', '/reset_simulation')
         self.spawn_service = d.get('spawn_service', '/spawn_entity')
         self.step_service = d.get('step_service', '/step_simulation')
+        # simulation_interfaces 2.x で追加されたもの
+        self.spawn_entities_service = d.get('spawn_entities_service', '/spawn_entities')
+        self.features_service = d.get('features_service', '/get_simulator_features')
 
         # --- トピック名 (未指定ならロボット名から組み立てる) ----------------
         self.joint_states_topic = d.get(
