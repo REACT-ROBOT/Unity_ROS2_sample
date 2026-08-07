@@ -22,7 +22,7 @@ pkill -f 'set_sim_stat[e]' 2>/dev/null
 sleep 2
 rm -f /dev/shm/fastrtps_* /dev/shm/sem.fastrtps_* 2>/dev/null
 
-source /opt/ros/humble/setup.bash
+source "/opt/ros/${ROS_DISTRO:-humble}/setup.bash"
 source ~/colcon_ws/install/setup.sh
 
 # endpoint FIRST so Unity's initial connection (and all topic registrations)

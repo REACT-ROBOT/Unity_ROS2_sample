@@ -30,7 +30,7 @@ Unity_ROS2_Robot_Simulator が `simulation_interfaces` (2.1.0) のサービス�
 
 ## 使い方
 
-コンテナの **中** で実行する。
+コンテナの **中** で実行する。ROS 2 Humble / Jazzy のどちらでもそのまま動く。
 
 ### 全部まとめて (推奨)
 

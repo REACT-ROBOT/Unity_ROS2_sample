@@ -6,8 +6,8 @@ This repository is a sample implementation of a ROS2-integrated simulator using 
 
 ## Prerequisites
 - Unity 2022.3 LTS or higher
-- ROS2 Humble or higher
-- Ubuntu 22.04 LTS (recommended)
+- ROS 2 Humble (Ubuntu 22.04) or Jazzy (Ubuntu 24.04)
+- Docker (either distro runs entirely inside the container)
 
 ## Installation
 1. Clone this repository:
@@ -15,16 +15,20 @@ This repository is a sample implementation of a ROS2-integrated simulator using 
 git clone https://github.com/yourusername/Unity_ROS2_sample.git
 ```
 
-2. Build the Docker image:
+2. Build the Docker image. The ROS distro is chosen by argument (humble by default):
 ```
 cd Unity_ROS2_sample/docker
-./build-docker-image.sh
+./build-dokcer-image.bash          # ROS 2 Humble / Ubuntu 22.04
+./build-dokcer-image.bash jazzy    # ROS 2 Jazzy  / Ubuntu 24.04
 ```
 
-3. Run the Docker container:
+3. Run the Docker container. Pass the same distro you built:
 ```
-./run-docker-container.sh
+./run-docker-container.bash
+./run-docker-container.bash jazzy
 ```
+
+Containers are named `ros-<distro>-unity-sample`, so a humble and a jazzy one can coexist.
 
 4. Build the ROS2 packages:
 ```
@@ -40,7 +44,7 @@ source install/setup.bash
 
 2. Run the TCP connector from a separate terminal:
 ```
-docker exec -it ros-humble-unity-sample /bin/bash
+docker exec -it ros-humble-unity-sample /bin/bash   # or ros-jazzy-unity-sample
 ```
 ```
 ./scripts/run_tcp_connector.sh
@@ -48,7 +52,7 @@ docker exec -it ros-humble-unity-sample /bin/bash
 
 3. Spawn the robot from another terminal:
 ```
-docker exec -it ros-humble-unity-sample /bin/bash
+docker exec -it ros-humble-unity-sample /bin/bash   # or ros-jazzy-unity-sample
 ```
 ```
 ros2 launch unity_diffbot_sim diffbot_spawn.launch.py
@@ -56,7 +60,7 @@ ros2 launch unity_diffbot_sim diffbot_spawn.launch.py
 
 4. Run teleop_twist_keyboard from another terminal:
 ```
-docker exec -it ros-humble-unity-sample /bin/bash
+docker exec -it ros-humble-unity-sample /bin/bash   # or ros-jazzy-unity-sample
 ```
 ```
 ./scripts/start_sim.sh

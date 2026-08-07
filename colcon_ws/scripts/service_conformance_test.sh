@@ -73,7 +73,9 @@ fi
 
 # ROS の setup スクリプトは未定義変数を参照するので set -u を一時的に外す
 set +u
-source /opt/ros/humble/setup.bash
+# ROS_DISTRO はコンテナのベースイメージが設定している。humble / jazzy の
+# どちらのコンテナでもそのまま動くよう、決め打ちにしない。
+source "/opt/ros/${ROS_DISTRO:-humble}/setup.bash"
 if [[ -f "${HOME}/colcon_ws/install/setup.sh" ]]; then
   source "${HOME}/colcon_ws/install/setup.sh"
 fi

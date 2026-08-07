@@ -6,8 +6,8 @@
 
 ## 前提条件
 - Unity 2022.3 LTS以上
-- ROS2 Humble以上
-- Ubuntu 22.04 LTS (推奨)
+- ROS 2 Humble (Ubuntu 22.04) または Jazzy (Ubuntu 24.04)
+- Docker (どちらの distro もコンテナ内で完結します)
 
 ## インストール方法
 1. このリポジトリをクローンします：
@@ -15,16 +15,20 @@
 git clone https://github.com/yourusername/Unity_ROS2_sample.git
 ```
 
-2. Dockerイメージを作成します。
+2. Dockerイメージを作成します。引数で ROS distro を選べます (既定は humble)。
 ```
 cd Unity_ROS2_sample/docker
-./build-docker-image.sh
+./build-dokcer-image.bash          # ROS 2 Humble / Ubuntu 22.04
+./build-dokcer-image.bash jazzy    # ROS 2 Jazzy  / Ubuntu 24.04
 ```
 
-3. Dockerコンテナを実行します。
+3. Dockerコンテナを実行します。ビルド時と同じ distro を指定してください。
 ```
-./run-docker-container.sh
+./run-docker-container.bash
+./run-docker-container.bash jazzy
 ```
+
+コンテナ名は `ros-<distro>-unity-sample` なので、humble と jazzy を並行して置けます。
 
 3. ROS2パッケージをビルドします。
 ```
@@ -40,7 +44,7 @@ source install/setup.bash
 
 2. 別のターミナルからTCPコネクタを実行します。
 ```
-docker exec -it ros-humble-unity-sample /bin/bash
+docker exec -it ros-humble-unity-sample /bin/bash   # jazzy なら ros-jazzy-unity-sample
 ```
 ```
 ./scripts/run_tcp_connector.sh
@@ -48,7 +52,7 @@ docker exec -it ros-humble-unity-sample /bin/bash
 
 3. 別のターミナルからロボットをスポーンさせます。
 ```
-docker exec -it ros-humble-unity-sample /bin/bash
+docker exec -it ros-humble-unity-sample /bin/bash   # jazzy なら ros-jazzy-unity-sample
 ```
 ```
 ros2 launch unity_diffbot_sim diffbot_spawn.launch.py
@@ -56,7 +60,7 @@ ros2 launch unity_diffbot_sim diffbot_spawn.launch.py
 
 4. 別のターミナルからteleop_twist_keyboardを実行します。
 ```
-docker exec -it ros-humble-unity-sample /bin/bash
+docker exec -it ros-humble-unity-sample /bin/bash   # jazzy なら ros-jazzy-unity-sample
 ```
 ```
 ./scripts/start_sim.sh

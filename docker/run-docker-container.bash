@@ -1,6 +1,23 @@
 #!/bin/bash
+# Start the container.
+#
+#   ./run-docker-container.bash [humble|jazzy]
+#
+# Defaults to humble. Container name is ros-<distro>-unity-sample, so a humble
+# and a jazzy container can coexist.
 
 file_dir=`dirname $0`
+
+# select ROS distro
+distro=${1:-humble}
+case "${distro}" in
+  humble) codename=jammy ;;
+  jazzy)  codename=noble ;;
+  *)
+    echo "Unsupported ROS distro '${distro}'. Use humble or jazzy." >&2
+    exit 1
+    ;;
+esac
 
 # start sharing xhost
 xhost +local:root
@@ -23,4 +40,4 @@ docker run -it --rm \
   -e DISPLAY=$DISPLAY \
   -e QT_X11_NO_MITSHM=1 \
   -v /run/dbus/system_bus_socket:/run/dbus/system_bus_socket \
-  -it --name "ros-humble-unity-sample" ${user}/ros-humble-jammy-unity-sample
+  -it --name "ros-${distro}-unity-sample" ${user}/ros-${distro}-${codename}-unity-sample
