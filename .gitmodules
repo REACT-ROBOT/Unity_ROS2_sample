@@ -4,9 +4,9 @@
 [submodule "colcon_ws/src/topic_based_ros2_control"]
 	path = colcon_ws/src/topic_based_ros2_control
 	url = https://github.com/hijimasa/topic_based_ros2_control.git
-[submodule "colcon_ws/src/ROS-TCP-Endpoint"]
-	path = colcon_ws/src/ROS-TCP-Endpoint
-	url = https://github.com/Unity-Technologies/ROS-TCP-Endpoint.git
 [submodule "colcon_ws/src/simulation_interfaces"]
 	path = colcon_ws/src/simulation_interfaces
 	url = https://github.com/ros-simulation/simulation_interfaces.git
+[submodule "colcon_ws/src/ROS-TCP-Endpoint"]
+	path = colcon_ws/src/ROS-TCP-Endpoint
+	url = https://github.com/hijimasa/ROS-TCP-Endpoint.git
