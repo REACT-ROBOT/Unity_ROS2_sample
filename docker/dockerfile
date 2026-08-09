@@ -2,8 +2,8 @@
 # ROS_DISTRO_ARG / UBUNTU_CODENAME are only needed to pick the base image; after
 # FROM everything uses ${ROS_DISTRO}, which the base image already sets, so the
 # two can never drift apart.
-ARG ROS_DISTRO_ARG=humble
-ARG UBUNTU_CODENAME=jammy
+ARG ROS_DISTRO_ARG=jazzy
+ARG UBUNTU_CODENAME=noble
 FROM ros:${ROS_DISTRO_ARG}-ros-base-${UBUNTU_CODENAME}
 
 # Arguments

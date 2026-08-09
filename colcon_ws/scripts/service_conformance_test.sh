@@ -75,7 +75,7 @@ fi
 set +u
 # ROS_DISTRO はコンテナのベースイメージが設定している。humble / jazzy の
 # どちらのコンテナでもそのまま動くよう、決め打ちにしない。
-source "/opt/ros/${ROS_DISTRO:-humble}/setup.bash"
+source "/opt/ros/${ROS_DISTRO:-jazzy}/setup.bash"
 if [[ -f "${HOME}/colcon_ws/install/setup.sh" ]]; then
   source "${HOME}/colcon_ws/install/setup.sh"
 fi

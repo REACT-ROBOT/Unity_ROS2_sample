@@ -4,9 +4,20 @@
 ## 概要
 このリポジトリは、Unityを使用したROS2連携シミュレータのサンプル実装です。UnityのリアルタイムレンダリングとROS2の通信機能を組み合わせ、ロボット開発やアルゴリズム検証のための評価環境を提供します。
 
+## ブランチ
+
+| ブランチ | 用途 |
+|---|---|
+| `main` | **ROS 2 Jazzy** を主対象とする開発ライン。既定の distro は jazzy |
+| `humble` | ROS 2 Humble 向け。Humble で検証を通した時点のスナップショット |
+
+スクリプトはどちらのブランチでも `${ROS_DISTRO}` を見るので、`main` でも
+`./build-dokcer-image.bash humble` と指定すれば Humble で動きます。`humble` ブランチは
+Humble 固有の修正が要るときに使います。
+
 ## 前提条件
 - Unity 2022.3 LTS以上
-- ROS 2 Humble (Ubuntu 22.04) または Jazzy (Ubuntu 24.04)
+- ROS 2 Jazzy (Ubuntu 24.04) または Humble (Ubuntu 22.04)
 - Docker (どちらの distro もコンテナ内で完結します)
 
 ## インストール方法
@@ -15,17 +26,17 @@
 git clone https://github.com/yourusername/Unity_ROS2_sample.git
 ```
 
-2. Dockerイメージを作成します。引数で ROS distro を選べます (既定は humble)。
+2. Dockerイメージを作成します。引数で ROS distro を選べます (既定は jazzy)。
 ```
 cd Unity_ROS2_sample/docker
-./build-dokcer-image.bash          # ROS 2 Humble / Ubuntu 22.04
-./build-dokcer-image.bash jazzy    # ROS 2 Jazzy  / Ubuntu 24.04
+./build-dokcer-image.bash          # ROS 2 Jazzy  / Ubuntu 24.04
+./build-dokcer-image.bash humble   # ROS 2 Humble / Ubuntu 22.04
 ```
 
 3. Dockerコンテナを実行します。ビルド時と同じ distro を指定してください。
 ```
 ./run-docker-container.bash
-./run-docker-container.bash jazzy
+./run-docker-container.bash humble
 ```
 
 コンテナ名は `ros-<distro>-unity-sample` なので、humble と jazzy を並行して置けます。
@@ -52,7 +63,7 @@ source install/setup.bash
 
 2. 別のターミナルからTCPコネクタを実行します。
 ```
-docker exec -it ros-humble-unity-sample /bin/bash   # jazzy なら ros-jazzy-unity-sample
+docker exec -it ros-jazzy-unity-sample /bin/bash   # humble なら ros-humble-unity-sample
 ```
 ```
 ./scripts/run_tcp_connector.sh
@@ -60,7 +71,7 @@ docker exec -it ros-humble-unity-sample /bin/bash   # jazzy なら ros-jazzy-uni
 
 3. 別のターミナルからロボットをスポーンさせます。
 ```
-docker exec -it ros-humble-unity-sample /bin/bash   # jazzy なら ros-jazzy-unity-sample
+docker exec -it ros-jazzy-unity-sample /bin/bash   # humble なら ros-humble-unity-sample
 ```
 ```
 ros2 launch unity_diffbot_sim diffbot_spawn.launch.py
@@ -68,7 +79,7 @@ ros2 launch unity_diffbot_sim diffbot_spawn.launch.py
 
 4. 別のターミナルからteleop_twist_keyboardを実行します。
 ```
-docker exec -it ros-humble-unity-sample /bin/bash   # jazzy なら ros-jazzy-unity-sample
+docker exec -it ros-jazzy-unity-sample /bin/bash   # humble なら ros-humble-unity-sample
 ```
 ```
 ./scripts/start_sim.sh

@@ -20,7 +20,7 @@ done
 sleep 2
 rm -f /dev/shm/fastrtps_* /dev/shm/sem.fastrtps_* 2>/dev/null
 
-source "/opt/ros/${ROS_DISTRO:-humble}/setup.bash"
+source "/opt/ros/${ROS_DISTRO:-jazzy}/setup.bash"
 source ~/colcon_ws/install/setup.sh
 
 nohup ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 \

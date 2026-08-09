@@ -3,14 +3,14 @@
 #
 #   ./build-dokcer-image.bash [humble|jazzy]
 #
-# Defaults to humble. The image is tagged <user>/ros-<distro>-<codename>-unity-sample.
+# Defaults to jazzy. The image is tagged <user>/ros-<distro>-<codename>-unity-sample.
 
 set -e
 
 file_dir=`dirname $0`
 
 # select ROS distro
-distro=${1:-humble}
+distro=${1:-jazzy}
 case "${distro}" in
   humble) codename=jammy ;;
   jazzy)  codename=noble ;;

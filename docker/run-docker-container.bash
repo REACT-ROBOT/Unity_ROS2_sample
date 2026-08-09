@@ -3,13 +3,13 @@
 #
 #   ./run-docker-container.bash [humble|jazzy]
 #
-# Defaults to humble. Container name is ros-<distro>-unity-sample, so a humble
+# Defaults to jazzy. Container name is ros-<distro>-unity-sample, so a humble
 # and a jazzy container can coexist.
 
 file_dir=`dirname $0`
 
 # select ROS distro
-distro=${1:-humble}
+distro=${1:-jazzy}
 case "${distro}" in
   humble) codename=jammy ;;
   jazzy)  codename=noble ;;
