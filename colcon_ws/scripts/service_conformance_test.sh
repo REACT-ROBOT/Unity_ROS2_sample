@@ -112,11 +112,33 @@ if [[ ${START_SIM} -eq 1 ]]; then
   # urdf の置き場所は下のテスト実行時に作られるが、GetSpawnables は
   # 呼ばれるたびに走査するので、先に作っておけば「読めないソース」に数えられない。
   mkdir -p "${WORLD_DIR}" "${OUT_DIR}/urdf"
+  # H9 (WORLD_TAGS) 用に、タグの付き方が異なる 3 つを置く。
+  #   conformance_world    -> indoor + warehouse (ALL 絞り込みの確認用)
+  #   conformance_outdoor  -> outdoor            (ANY で複数指定したときの確認用)
+  #   conformance_untagged -> タグ無し           (タグ指定時に外れることの確認用)
   cat > "${WORLD_DIR}/conformance_world.json" <<'EOF'
-{ "objects": [
+{ "name": "conformance_world",
+  "description": "適合性テスト用の屋内ワールド",
+  "tags": ["indoor", "warehouse"],
+  "objects": [
   { "type": "Cube",   "position": [3.0, 0.5, 0.0], "rotationEuler": [0, 0, 0],
     "scale": [1, 1, 1], "meshPath": "", "isActive": true },
   { "type": "Sphere", "position": [-3.0, 0.5, 0.0], "rotationEuler": [0, 0, 0],
+    "scale": [1, 1, 1], "meshPath": "", "isActive": true }
+] }
+EOF
+  cat > "${WORLD_DIR}/conformance_outdoor.json" <<'EOF'
+{ "name": "conformance_outdoor",
+  "description": "適合性テスト用の屋外ワールド",
+  "tags": ["outdoor"],
+  "objects": [
+  { "type": "Cube", "position": [0.0, 0.5, 4.0], "rotationEuler": [0, 0, 0],
+    "scale": [1, 1, 1], "meshPath": "", "isActive": true }
+] }
+EOF
+  cat > "${WORLD_DIR}/conformance_untagged.json" <<'EOF'
+{ "objects": [
+  { "type": "Sphere", "position": [0.0, 0.5, -4.0], "rotationEuler": [0, 0, 0],
     "scale": [1, 1, 1], "meshPath": "", "isActive": true }
 ] }
 EOF

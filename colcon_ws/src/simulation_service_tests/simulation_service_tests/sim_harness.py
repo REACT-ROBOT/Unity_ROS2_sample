@@ -662,11 +662,14 @@ class SimHarness(Node):
     def get_current_world(self, timeout=None):
         return self._call('get_current_world', GetCurrentWorld.Request(), timeout)
 
-    def get_available_worlds(self, additional_sources=(), tags=(), offline_only=False,
-                             continue_on_error=True, timeout=None):
+    def get_available_worlds(self, additional_sources=(), tags=(), tags_mode=0,
+                             offline_only=False, continue_on_error=True, timeout=None):
         req = GetAvailableWorlds.Request()
         req.additional_sources = list(additional_sources)
         req.filter.tags = list(tags)
+        # 未知の filter_mode を送って異常時の挙動を見たいので、
+        # TagsFilter の定数に丸めずそのまま入れる。
+        req.filter.filter_mode = tags_mode
         req.offline_only = offline_only
         req.continue_on_error = continue_on_error
         return self._call('get_available_worlds', req, timeout)

@@ -17,7 +17,7 @@ Unity_ROS2_Robot_Simulator が `simulation_interfaces` (2.1.0) のサービス�
 | E1–E2 | `STATE_STOPPED` でのデスポーンと、その後の再スポーン |
 | F1–F2 | `step_simulation` の進み量 (`n` と `2n` の比)、空シーンへのリセット |
 | G1–G5 | **simulation_interfaces 2.x**。**申告とサービス実体の突き合わせ**、`Resource` によるスポーン、`spawn_entities` (複数生成・部分失敗の報告)、`entity_namespace` によるトピック分離 |
-| H1–H8 | **任意サービス**。`get_entities` / `get_entity_state` と ground_truth の一致、`set_entity_state`、`entity_info`、`get_entity_bounds`、`EntityFilters`、`delete_entity`、`get_spawnables` / 名前付き姿勢、world のライフサイクル |
+| H1–H9 | **任意サービス**。`get_entities` / `get_entity_state` と ground_truth の一致、`set_entity_state`、`entity_info`、`get_entity_bounds`、`EntityFilters`、`delete_entity`、`get_spawnables` / 名前付き姿勢、world のライフサイクル、**world のタグ絞り込み** |
 
 ★ 印のシナリオ (D5 / D8 / D10) が報告されている不具合の直接検証にあたる。
 

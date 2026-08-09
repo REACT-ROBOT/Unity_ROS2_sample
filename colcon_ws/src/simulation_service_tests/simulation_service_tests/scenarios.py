@@ -1286,6 +1286,134 @@ def h8_world_lifecycle(ctx):
               f'不正な world で壊れない / 降ろすと NO_WORLD / 読み直すと STOPPED{from_file}')
 
 
+@scenario('H9', 'H. world', 'world をタグで絞り込める (WORLD_TAGS)', requires=('services',))
+def h9_world_tags(ctx):
+    """WORLD_TAGS の基本動作と、異常な要求への応答をまとめて見る。
+
+    タグ付きワールドはハーネスが用意する (``service_conformance_test.sh`` が
+    indoor+warehouse / outdoor / タグ無し の 3 つを置く)。``--no-sim`` で
+    相乗りした場合は用意されていないことがあるので、材料が足りなければ SKIP。
+    """
+    unmet = need_services(ctx, 'get_available_worlds')
+    if unmet:
+        return unmet
+
+    features = ctx.features or set(ctx.h.simulator_features().features.features)
+    supported = SimulatorFeatures.WORLD_TAGS in features
+
+    if not supported:
+        # 申告していないなら、黙って全部返すのではなく未対応と答えること
+        res = ctx.h.get_available_worlds(tags=['indoor'])
+        if res.result.result == RESULT_FEATURE_UNSUPPORTED:
+            return ok('WORLD_TAGS 未対応を FEATURE_UNSUPPORTED(0) で明示している')
+        return fail(
+            f'WORLD_TAGS を申告していないのにタグ絞り込みが '
+            f'{world_result_name(res.result.result)} を返した。'
+            '未対応なら FEATURE_UNSUPPORTED(0) を返すべき')
+
+    everything = ctx.h.get_available_worlds()
+    if everything.result.result != RESULT_OK:
+        return fail(f'絞り込み無しの get_available_worlds が '
+                    f'{world_result_name(everything.result.result)}')
+    by_name = {w.name: w for w in everything.worlds}
+    tagged = {name: set(w.tags) for name, w in by_name.items() if w.tags}
+    if not tagged:
+        return skip('タグの付いたワールドが 1 つも無い '
+                    '(--no-sim で相乗りした場合など。ハーネスが用意する 3 つが要る)')
+
+    # 材料にする世界は「タグが最も多いもの」を選ぶ。名前順で選ぶと、たまたま
+    # タグが 1 つの世界に当たったときに ALL の一致ケースを素通りしてしまう
+    # (実際それで ALL の肯定側が一度も実行されていなかった)。
+    # 同数のときは名前順にして、実行ごとに選択が変わらないようにする。
+    sample_name, sample_tags = max(tagged.items(), key=lambda kv: (len(kv[1]), kv[0]))
+    sample_tag = sorted(sample_tags)[0]
+    expected_any = {n for n, t in tagged.items() if sample_tag in t}
+
+    hit = ctx.h.get_available_worlds(tags=[sample_tag])
+    if hit.result.result != RESULT_OK:
+        return fail(f'タグ絞り込みが {world_result_name(hit.result.result)}')
+    got = {w.name for w in hit.worlds}
+    if got != expected_any:
+        return fail(f'タグ {sample_tag} の絞り込み結果が合わない: '
+                    f'期待 {sorted(expected_any)} / 実際 {sorted(got)}')
+    untagged = [n for n, w in by_name.items() if not w.tags]
+    if any(n in got for n in untagged):
+        return fail(f'タグ指定なのにタグ無しのワールドが混ざった: {sorted(got)}')
+
+    # タグは一覧の WorldResource にも載っていること
+    if not by_name[sample_name].tags:
+        return fail(f'{sample_name} の tags が空。一覧はタグを載せて返すべき')
+
+    # ANY: 複数指定するとどれか 1 つでも一致したものが返る
+    other = sorted({t for tags in tagged.values() for t in tags} - {sample_tag})
+    detail_any = ''
+    if other:
+        both = ctx.h.get_available_worlds(tags=[sample_tag, other[0]], tags_mode=0)
+        expected_both = {n for n, t in tagged.items() if sample_tag in t or other[0] in t}
+        if {w.name for w in both.worlds} != expected_both:
+            return fail(f'ANY で [{sample_tag}, {other[0]}] を指定した結果が合わない: '
+                        f'期待 {sorted(expected_both)} / '
+                        f'実際 {sorted(w.name for w in both.worlds)}')
+        detail_any = f' / ANY[{sample_tag},{other[0]}]={len(expected_both)} 件'
+
+    # ALL: 全部一致したものだけ返る
+    detail_all = ''
+    if len(sample_tags) >= 2:
+        every = sorted(sample_tags)
+        res = ctx.h.get_available_worlds(tags=every, tags_mode=1)
+        expected_all = {n for n, t in tagged.items() if set(every) <= t}
+        if {w.name for w in res.worlds} != expected_all:
+            return fail(f'ALL で {every} を指定した結果が合わない: '
+                        f'期待 {sorted(expected_all)} / '
+                        f'実際 {sorted(w.name for w in res.worlds)}')
+        detail_all = f' / ALL{every}={len(expected_all)} 件'
+    if other:
+        # 同時には成り立たない組み合わせ -> 0 件。ただしエラーではない
+        impossible = ctx.h.get_available_worlds(tags=[sample_tag, other[0]], tags_mode=1)
+        if impossible.result.result != RESULT_OK:
+            return fail(f'ALL で一致しない組み合わせを指定したら '
+                        f'{world_result_name(impossible.result.result)} が返った。'
+                        '一致 0 件は失敗ではなく、空リストと OK であるべき')
+        if impossible.worlds:
+            return fail(f'ALL で両立しないタグを指定したのに '
+                        f'{sorted(w.name for w in impossible.worlds)} が返った')
+
+    # 存在しないタグ -> 0 件 + OK (見つからないことはエラーではない)
+    unknown = ctx.h.get_available_worlds(tags=['no_such_world_tag_probe'])
+    if unknown.result.result != RESULT_OK:
+        return fail(f'存在しないタグで {world_result_name(unknown.result.result)} が返った。'
+                    '一致 0 件は失敗ではない')
+    if unknown.worlds:
+        return fail(f'存在しないタグなのに {sorted(w.name for w in unknown.worlds)} が返った')
+
+    # 未知の filter_mode -> 黙って ANY 扱いにせず失敗させること
+    bogus = ctx.h.get_available_worlds(tags=[sample_tag], tags_mode=7)
+    if bogus.result.result == RESULT_OK:
+        return fail('未知の filter_mode=7 が成功扱いになった。'
+                    '解釈できない絞り込みを黙って別の意味で実行してはいけない')
+
+    # 読み込んだワールドのタグが get_current_world からも見えること
+    detail_current = ''
+    if ctx.h.service_ready('load_world') and ctx.h.service_ready('get_current_world'):
+        uri = by_name[sample_name].world_resource.uri
+        if uri:
+            loaded = ctx.h.load_world(uri=uri, timeout=max(ctx.p.service_timeout, 40.0))
+            if loaded.result.result != RESULT_OK:
+                return fail(f'{sample_name} の load_world が '
+                            f'{world_result_name(loaded.result.result)}')
+            current = ctx.h.get_current_world()
+            if set(current.world.tags) != sample_tags:
+                return fail(
+                    f'load_world 後の get_current_world のタグが '
+                    f'{sorted(current.world.tags)}。期待は {sorted(sample_tags)}')
+            detail_current = f' / 読み込み後も tags={sorted(sample_tags)}'
+
+    return ok(f'一覧 {len(everything.worlds)} 件中 タグ {sample_tag} で '
+              f'{len(expected_any)} 件{detail_any}{detail_all} / '
+              f'未知タグは 0 件 OK / 未知 filter_mode は '
+              f'{world_result_name(bogus.result.result)}{detail_current}')
+
+
 # ======================================================================
 # 実行
 # ======================================================================
