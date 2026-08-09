@@ -54,6 +54,8 @@ class Profile:
         self.get_current_world_service = d.get('get_current_world_service', '/get_current_world')
         self.get_available_worlds_service = d.get(
             'get_available_worlds_service', '/get_available_worlds')
+        # アクション (任意)
+        self.simulate_steps_action = d.get('simulate_steps_action', '/simulate_steps')
 
         # --- トピック名 (未指定ならロボット名から組み立てる) ----------------
         self.joint_states_topic = d.get(

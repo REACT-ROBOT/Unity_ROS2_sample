@@ -19,10 +19,13 @@ import time
 from builtin_interfaces.msg import Time as TimeMsg
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Vector3 as Vector3Msg
+from action_msgs.msg import GoalStatus
+from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
 from sensor_msgs.msg import JointState
+from simulation_interfaces.action import SimulateSteps
 from simulation_interfaces.msg import (
     Bounds,
     EntityCategory,
@@ -326,6 +329,10 @@ class SimHarness(Node):
                 GetCurrentWorld, profile.get_current_world_service),
             'get_available_worlds': self.create_client(
                 GetAvailableWorlds, profile.get_available_worlds_service),
+        }
+
+        self._action_clients = {
+            'simulate_steps': ActionClient(self, SimulateSteps, profile.simulate_steps_action),
         }
 
         # ROS-TCP-Endpoint 側の publisher は既定 QoS (RELIABLE / VOLATILE / depth 10)
@@ -673,6 +680,50 @@ class SimHarness(Node):
         req.offline_only = offline_only
         req.continue_on_error = continue_on_error
         return self._call('get_available_worlds', req, timeout)
+
+    # ------------------------------------------------------------------
+    # simulate_steps アクション
+    # ------------------------------------------------------------------
+    def action_server_ready(self, name='simulate_steps', timeout=2.0):
+        return self._action_clients[name].wait_for_server(timeout_sec=timeout)
+
+    def _wait_future(self, future, timeout, what):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if future.done():
+                return future.result()
+            time.sleep(0.02)
+        raise ServiceTimeout(f'{what} が {timeout:.0f}s 以内に返らない')
+
+    def simulate_steps(self, steps, timeout=None, cancel_after=None):
+        """simulate_steps へゴールを送り、(status, result, feedback, accepted) を返す。
+
+        ``cancel_after`` に秒数を渡すと、その時間だけ待ってからキャンセルを要求する。
+        feedback は受け取った順のリスト。
+        """
+        timeout = self.service_timeout if timeout is None else timeout
+        client = self._action_clients['simulate_steps']
+        if not client.wait_for_server(timeout_sec=timeout):
+            raise ServiceTimeout("action server 'simulate_steps' が現れない")
+
+        goal = SimulateSteps.Goal()
+        goal.steps = int(steps)
+
+        feedback = []
+        send_future = client.send_goal_async(
+            goal, feedback_callback=lambda msg: feedback.append(msg.feedback)
+        )
+        goal_handle = self._wait_future(send_future, timeout, 'simulate_steps のゴール送信')
+        if not goal_handle.accepted:
+            return None, None, feedback, False
+
+        result_future = goal_handle.get_result_async()
+        if cancel_after is not None:
+            time.sleep(cancel_after)
+            goal_handle.cancel_goal_async()
+
+        wrapped = self._wait_future(result_future, timeout, 'simulate_steps の結果')
+        return wrapped.status, wrapped.result, feedback, True
 
     # ------------------------------------------------------------------
     # 状態遷移のショートカット

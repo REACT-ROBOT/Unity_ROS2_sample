@@ -19,6 +19,8 @@ Unity_ROS2_Robot_Simulator が `simulation_interfaces` (2.1.0) のサービス�
 | G1–G5 | **simulation_interfaces 2.x**。**申告とサービス実体の突き合わせ**、`Resource` によるスポーン、`spawn_entities` (複数生成・部分失敗の報告)、`entity_namespace` によるトピック分離 |
 | H1–H9 | **任意サービス**。`get_entities` / `get_entity_state` と ground_truth の一致、`set_entity_state`、`entity_info`、`get_entity_bounds`、`EntityFilters`、`delete_entity`、`get_spawnables` / 名前付き姿勢、world のライフサイクル、**world のタグ絞り込み** |
 
+| I1–I2 | **`simulate_steps` アクション**。1 ステップごとの feedback、途中キャンセル |
+
 ★ 印のシナリオ (D5 / D8 / D10) が報告されている不具合の直接検証にあたる。
 
 **H 群は「実装していなければ SKIP」** で流す。エンティティ操作と world は
@@ -133,3 +135,10 @@ ros2 run simulation_service_tests service_conformance --only D5 D8 D10  # 一部
   「設定なし」として空の応答を許容する。
 - **一時停止中に sim 時刻を読むには `get_entity_state`。** `joint_states` は
   止まっているので使えない。F1 が step の進み量を測るのにこれを使っている。
+- **`simulate_steps` アクションは fork 版のスタックでしか動かない。** 本家の
+  ROS-TCP-Connector / ROS-TCP-Endpoint にはアクションの口が無く、hijimasa fork で
+  両方に足してある。I 群は `STEP_SIMULATION_ACTION` の申告とアクションサーバの
+  有無を突き合わせるので、未対応のスタックでは SKIP になる。
+- **アクションはエンドポイントのスレッドを 1 本占有する。** ゴールの実行中に
+  キャンセル要求を捌く必要があるため、エンドポイント側の executor には
+  テーブル数に依存しない下限 (`TcpServer.MIN_EXECUTOR_THREADS`) を持たせてある。

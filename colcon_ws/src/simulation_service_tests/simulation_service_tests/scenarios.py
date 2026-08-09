@@ -20,6 +20,7 @@ import traceback
 from simulation_interfaces.msg import SimulationState
 from simulation_interfaces.srv import ResetSimulation
 
+from action_msgs.msg import GoalStatus
 from simulation_interfaces.msg import Bounds, EntityCategory, Resource, SimulatorFeatures
 
 from .sim_harness import (
@@ -1412,6 +1413,132 @@ def h9_world_tags(ctx):
               f'{len(expected_any)} 件{detail_any}{detail_all} / '
               f'未知タグは 0 件 OK / 未知 filter_mode は '
               f'{world_result_name(bogus.result.result)}{detail_current}')
+
+
+# ======================================================================
+# I. simulate_steps アクション
+# ======================================================================
+
+@scenario('I1', 'I. アクション', 'simulate_steps が feedback を返しながら指定ステップ進む',
+          requires=('services',))
+def i1_simulate_steps(ctx):
+    """STEP_SIMULATION_ACTION の基本動作。
+
+    サービス版 (F1) と違い、アクションは 1 ステップごとに feedback を返すと
+    .action ファイルに書かれているので、その回数と中身まで見る。
+    """
+    features = ctx.features or set(ctx.h.simulator_features().features.features)
+    supported = SimulatorFeatures.STEP_SIMULATION_ACTION in features
+    ready = ctx.h.action_server_ready(timeout=5.0)
+
+    if not supported:
+        if ready:
+            return fail('STEP_SIMULATION_ACTION を申告していないのに '
+                        'simulate_steps アクションサーバが存在する')
+        return skip('simulate_steps は未実装 (申告も無い)')
+    if not ready:
+        return fail('STEP_SIMULATION_ACTION を申告しているのに '
+                    'simulate_steps アクションサーバが見つからない')
+
+    entity = ensure_entity(ctx)
+    if entity is None or not ctx.h.service_ready('get_entity_state'):
+        return skip('sim 時刻を読むための get_entity_state / エンティティが無い')
+
+    def sim_time():
+        res = ctx.h.get_entity_state(entity)
+        return None if res.result.result != RESULT_OK else (
+            res.state.header.stamp.sec + res.state.header.stamp.nanosec * 1e-9)
+
+    # 一時停止していないときは OPERATION_FAILED (.action の規定)
+    ctx.h.play()
+    time.sleep(0.3)
+    status, result, _, accepted = ctx.h.simulate_steps(1)
+    if not accepted:
+        return fail('PLAYING 中のゴールが受理されなかった。'
+                    'SimulateSteps.action は結果で OPERATION_FAILED を返すと定めている')
+    if result.result.result != RESULT_OPERATION_FAILED:
+        return fail(f'PLAYING 中の simulate_steps が '
+                    f'{result_name(result.result.result)} を返した。期待は OPERATION_FAILED(4)')
+    if status != GoalStatus.STATUS_ABORTED:
+        return fail(f'失敗したゴールの status が {status}。期待は ABORTED(6)')
+
+    # 一時停止して本番
+    ctx.h.pause()
+    time.sleep(0.3)
+    steps = 20
+    before = sim_time()
+    status, result, feedback, accepted = ctx.h.simulate_steps(
+        steps, timeout=max(ctx.p.service_timeout, 30.0))
+    after = sim_time()
+
+    if not accepted:
+        return fail('一時停止中のゴールが受理されなかった')
+    if result.result.result != RESULT_OK:
+        return fail(f'simulate_steps が {result_name(result.result.result)}: '
+                    f'{result.result.error_message}')
+    if status != GoalStatus.STATUS_SUCCEEDED:
+        return fail(f'完走したゴールの status が {status}。期待は SUCCEEDED(4)')
+    if len(feedback) != steps:
+        return fail(f'feedback が {len(feedback)} 回。'
+                    f'{steps} ステップなら毎ステップ 1 回で {steps} 回のはず')
+
+    completed = [f.completed_steps for f in feedback]
+    remaining = [f.remaining_steps for f in feedback]
+    if completed != list(range(1, steps + 1)):
+        return fail(f'completed_steps が 1..{steps} の順になっていない: {completed}')
+    if any(c + r != steps for c, r in zip(completed, remaining)):
+        return fail(f'completed_steps + remaining_steps が {steps} にならない: '
+                    f'{list(zip(completed, remaining))}')
+
+    if before is None or after is None:
+        return skip('sim 時刻を取得できなかった')
+    if after <= before:
+        return fail(f'{steps} ステップ進めたのに sim 時刻が進んでいない '
+                    f'({before:.3f} -> {after:.3f})')
+    if ctx.h.current_state() != SimulationState.STATE_PAUSED:
+        return fail('simulate_steps の後に PAUSED へ戻っていない')
+
+    ctx.mark('simulate_steps')
+    return ok(f'{steps} ステップで feedback {len(feedback)} 回、'
+              f'sim 時刻 {before:.3f} -> {after:.3f} ({after - before:.3f}s)、終了後も PAUSED')
+
+
+@scenario('I2', 'I. アクション', 'simulate_steps を途中でキャンセルできる',
+          requires=('simulate_steps',))
+def i2_simulate_steps_cancel(ctx):
+    """キャンセル要求で早く終わり、status が CANCELED になること。
+
+    ステップ数を多めに取っておいて、進みきる前にキャンセルを投げる。
+    """
+    ctx.h.pause()
+    time.sleep(0.3)
+
+    steps = 3000  # 50Hz なら 60s 相当。キャンセルしなければ終わらない長さ
+    status, result, feedback, accepted = ctx.h.simulate_steps(
+        steps, timeout=max(ctx.p.service_timeout, 30.0), cancel_after=1.0)
+
+    if not accepted:
+        return fail('ゴールが受理されなかった')
+    if status != GoalStatus.STATUS_CANCELED:
+        return fail(f'キャンセルしたゴールの status が {status}。期待は CANCELED(5)')
+    if not feedback:
+        return fail('キャンセルまでに feedback が 1 回も来ていない')
+
+    done = feedback[-1].completed_steps
+    if done >= steps:
+        return fail(f'キャンセルしたのに {done}/{steps} ステップ完走している')
+    if ctx.h.current_state() != SimulationState.STATE_PAUSED:
+        return fail('キャンセル後に PAUSED へ戻っていない')
+
+    # キャンセル後もサービスが生きていること (打ち切りで内部状態が壊れていない)
+    follow_up = ctx.h.step(1)
+    if follow_up.result.result != RESULT_OK:
+        return fail(f'キャンセル直後の step_simulation が '
+                    f'{result_name(follow_up.result.result)}。'
+                    'キャンセルで stepping 状態が残っている可能性')
+
+    return ok(f'{done}/{steps} ステップで打ち切り、status=CANCELED、'
+              'その後の step_simulation も通る')
 
 
 # ======================================================================
