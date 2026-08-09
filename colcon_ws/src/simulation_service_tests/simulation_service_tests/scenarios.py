@@ -1109,19 +1109,72 @@ def h5_entity_filters(ctx):
     if far.entities:
         return fail(f'500m 離れた球に {list(far.entities)} が引っかかった')
 
-    # 未対応の bounds 種別は FEATURE_UNSUPPORTED を返すこと (黙って無視しない)
-    convex = Bounds()
-    convex.type = Bounds.TYPE_CONVEX_HULL
-    convex.points = ctx.h.sphere_bounds((0.0, 0.0, 0.0), 1.0).points
-    unsupported = ctx.h.get_entities(ctx.h.entity_filters(bounds=convex))
-    supports_convex = SimulatorFeatures.ENTITY_BOUNDS_CONVEX in (ctx.features or set())
-    if not supports_convex and unsupported.result.result != RESULT_FEATURE_UNSUPPORTED:
-        return fail(
-            f'ENTITY_BOUNDS_CONVEX を申告していないのに TYPE_CONVEX_HULL が '
-            f'{result_name(unsupported.result.result)} を返した。'
-            'EntityFilters は未対応の bounds 種別に FEATURE_UNSUPPORTED を返すと定めている')
+    # 凸包 (TYPE_CONVEX_HULL)
+    features = ctx.features or set(ctx.h.simulator_features().features.features)
+    supports_convex = SimulatorFeatures.ENTITY_BOUNDS_CONVEX in features
+    here = (p.x, p.y, p.z)
 
-    return ok('名前正規表現・球 bounds の内外・未対応 bounds の扱いを確認')
+    if not supports_convex:
+        # 申告していないなら、黙って無視せず FEATURE_UNSUPPORTED を返すこと
+        unsupported = ctx.h.get_entities(ctx.h.entity_filters(
+            bounds=ctx.h.convex_bounds(ctx.h.tetrahedron_around(here, 4.0))))
+        if unsupported.result.result != RESULT_FEATURE_UNSUPPORTED:
+            return fail(
+                f'ENTITY_BOUNDS_CONVEX を申告していないのに TYPE_CONVEX_HULL が '
+                f'{result_name(unsupported.result.result)} を返した。'
+                'EntityFilters は未対応の bounds 種別に FEATURE_UNSUPPORTED を返すと定めている')
+        return ok('名前正規表現・球 bounds の内外・未対応 bounds の扱いを確認 '
+                  '(凸包は未対応の申告どおり)')
+
+    inside = ctx.h.get_entities(ctx.h.entity_filters(
+        bounds=ctx.h.convex_bounds(ctx.h.tetrahedron_around(here, 4.0))))
+    if inside.result.result != RESULT_OK:
+        return fail(f'凸包での絞り込みが {result_name(inside.result.result)}: '
+                    f'{inside.result.error_message}')
+    if name not in inside.entities:
+        return fail(f'自分を囲む四面体で {name} が出てこない: {list(inside.entities)}')
+
+    far_center = (p.x + 500.0, p.y, p.z)
+    outside = ctx.h.get_entities(ctx.h.entity_filters(
+        bounds=ctx.h.convex_bounds(ctx.h.tetrahedron_around(far_center, 4.0))))
+    if outside.entities:
+        return fail(f'500m 離れた四面体に {list(outside.entities)} が引っかかった')
+
+    # 同一平面上の点だけの凸包 (退化した入力)。エンティティを縦に貫く大きな四角形。
+    # 高さは get_entity_bounds の中央に合わせて、確実に中を通るようにする。
+    coplanar_note = ''
+    if ctx.h.service_ready('get_entity_bounds'):
+        eb = ctx.h.get_entity_bounds(name)
+        if eb.result.result == RESULT_OK and eb.bounds.type == Bounds.TYPE_BOX:
+            hi, lo = eb.bounds.points[0], eb.bounds.points[1]
+            mid_y = p.y + (hi.y + lo.y) * 0.5
+            mid_z = p.z + (hi.z + lo.z) * 0.5
+            square = [
+                (p.x - 5.0, mid_y, mid_z - 5.0),
+                (p.x + 5.0, mid_y, mid_z - 5.0),
+                (p.x + 5.0, mid_y, mid_z + 5.0),
+                (p.x - 5.0, mid_y, mid_z + 5.0),
+            ]
+            flat = ctx.h.get_entities(ctx.h.entity_filters(
+                bounds=ctx.h.convex_bounds(square)))
+            if flat.result.result != RESULT_OK:
+                return fail(f'同一平面上の凸包が {result_name(flat.result.result)}: '
+                            f'{flat.result.error_message}')
+            if name not in flat.entities:
+                return fail(f'エンティティを貫く平面状の凸包で {name} が出てこない: '
+                            f'{list(flat.entities)}。退化した凸包の扱いを疑うこと')
+            coplanar_note = ' / 平面状の凸包も通る'
+
+    # 点が足りない凸包は OPERATION_FAILED (Bounds.msg は 3 点以上と定めている)
+    too_few = ctx.h.get_entities(ctx.h.entity_filters(
+        bounds=ctx.h.convex_bounds([(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)])))
+    if too_few.result.result == RESULT_OK:
+        return fail('2 点しかない TYPE_CONVEX_HULL が成功扱いになった。'
+                    'Bounds.msg は 3 点以上と定めている')
+
+    return ok('名前正規表現・球 bounds の内外・凸包の内外'
+              f'{coplanar_note} / 点不足の凸包は '
+              f'{result_name(too_few.result.result)}')
 
 
 @scenario('H6', 'H. エンティティ操作', 'delete_entity が指定した 1 体だけ消す',

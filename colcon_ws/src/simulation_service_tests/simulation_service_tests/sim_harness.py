@@ -570,6 +570,31 @@ class SimHarness(Node):
         bounds.points = [first, second]
         return bounds
 
+    @staticmethod
+    def convex_bounds(points):
+        """Bounds.msg の TYPE_CONVEX_HULL。points は頂点の並び。"""
+        bounds = Bounds()
+        bounds.type = Bounds.TYPE_CONVEX_HULL
+        vertices = []
+        for p in points:
+            v = Vector3Msg()
+            v.x, v.y, v.z = (float(c) for c in p)
+            vertices.append(v)
+        bounds.points = vertices
+        return bounds
+
+    @staticmethod
+    def tetrahedron_around(center, half):
+        """center を内側に含む四面体。立方体の頂点を 1 つおきに取ったもの。"""
+        cx, cy, cz = center
+        h = float(half)
+        return [
+            (cx + h, cy + h, cz + h),
+            (cx + h, cy - h, cz - h),
+            (cx - h, cy + h, cz - h),
+            (cx - h, cy - h, cz + h),
+        ]
+
     def get_entities(self, filters=None, timeout=None):
         req = GetEntities.Request()
         if filters is not None:
