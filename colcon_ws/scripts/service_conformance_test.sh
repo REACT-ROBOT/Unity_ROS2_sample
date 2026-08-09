@@ -142,10 +142,13 @@ EOF
     "scale": [1, 1, 1], "meshPath": "", "isActive": true }
 ] }
 EOF
+  # colcon の install も検索パスへ入れる。resource_string で渡した URDF の
+  # package:// 参照は URDF の位置を起点にできないので、ここから解決させる。
+  WS_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
   RESOURCES_CONFIG="${OUT_DIR}/simulation_resources.json"
   cat > "${RESOURCES_CONFIG}" <<EOF
 {
-  "spawnable_paths": ["${OUT_DIR}/urdf"],
+  "spawnable_paths": ["${OUT_DIR}/urdf", "${WS_ROOT}/install"],
   "world_paths": ["${WORLD_DIR}"],
   "named_poses": [
     { "name": "conformance_spawn", "description": "適合性テスト用のスポーン地点",

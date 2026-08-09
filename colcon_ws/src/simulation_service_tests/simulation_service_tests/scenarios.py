@@ -919,6 +919,108 @@ def g5_entity_namespace(ctx):
     return ok(f'{expected} を確認')
 
 
+@scenario('G6', 'G. interfaces 2.x', 'resource_string からスポーンできる (SPAWNING_RESOURCE_STRING)',
+          requires=('services',))
+def g6_spawn_from_resource_string(ctx):
+    """uri を空にして定義そのものを文字列で渡す経路。
+
+    mesh 参照が絡む場合、URDF がファイルとして存在しないので「URDF の隣」を
+    起点にした解決ができない。検索パス (simulation_resources.json の
+    spawnable_paths、および AMENT_PREFIX_PATH) から引けることまで見る。
+    """
+    features = ctx.features or set(ctx.h.simulator_features().features.features)
+    supported = SimulatorFeatures.SPAWNING_RESOURCE_STRING in features
+
+    with open(ctx.urdf_path, 'r') as f:
+        urdf_text = f.read()
+
+    resource = Resource()
+    resource.uri = ''
+    resource.resource_string = urdf_text
+
+    ctx.h.stop()
+    time.sleep(0.5)
+    ctx.h.play()
+    time.sleep(0.3)
+
+    name = f'{ctx.p.robot_name}_from_string'
+    res = ctx.h.spawn_raw(resource, name=name)
+    code = res.result.result
+
+    if not supported:
+        if code == RESULT_OK:
+            return fail('SPAWNING_RESOURCE_STRING を申告していないのに '
+                        'resource_string でのスポーンが成功した')
+        return ok(f'未対応を明示している: {spawn_result_name(code)}')
+
+    if code != RESULT_OK:
+        return fail(f'resource_string でのスポーンが {spawn_result_name(code)}: '
+                    f'{res.result.error_message}')
+    time.sleep(ctx.p.spawn_settle_time)
+
+    if ctx.h.service_ready('get_entities'):
+        listed = ctx.h.get_entities()
+        if name not in listed.entities:
+            return fail(f'スポーンしたはずの {name} が get_entities に出てこない: '
+                        f'{list(listed.entities)}')
+
+    # mesh を package:// で参照する定義を文字列で渡す。ファイルが無いので
+    # 検索パスから引けなければ mesh が読めず、形の無いエンティティになる。
+    mesh_note = ''
+    mesh_urdf = (
+        '<?xml version="1.0"?>\n'
+        '<robot name="mesh_probe">\n'
+        '  <link name="base_link">\n'
+        '    <inertial><mass value="1.0"/>\n'
+        '      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>\n'
+        '    </inertial>\n'
+        # STL は mm 単位なので、元の khr3 の URDF と同じ倍率を掛ける
+        '    <visual><geometry>\n'
+        '      <mesh filename="package://khr3_description/meshes/base_link.stl"'
+        ' scale="0.001 0.001 0.001"/>\n'
+        '    </geometry></visual>\n'
+        '  </link>\n'
+        '</robot>\n'
+    )
+    mesh_resource = Resource()
+    mesh_resource.uri = ''
+    mesh_resource.resource_string = mesh_urdf
+    mesh_name = 'mesh_probe'
+    mesh_res = ctx.h.spawn_raw(mesh_resource, name=mesh_name,
+                               pose=(0.0, 4.0, 0.0, 0.0, 0.0, 0.0))
+    if mesh_res.result.result != RESULT_OK:
+        return fail(f'package:// mesh を含む resource_string のスポーンが '
+                    f'{spawn_result_name(mesh_res.result.result)}: '
+                    f'{mesh_res.result.error_message}')
+    time.sleep(ctx.p.spawn_settle_time)
+
+    if ctx.h.service_ready('get_entity_bounds'):
+        eb = ctx.h.get_entity_bounds(mesh_name)
+        if eb.result.result != RESULT_OK:
+            return fail(f'get_entity_bounds({mesh_name}) が '
+                        f'{result_name(eb.result.result)}')
+        if eb.bounds.type != Bounds.TYPE_BOX or not eb.bounds.points:
+            return fail(
+                f'{mesh_name} に形が無い (bounds type={eb.bounds.type})。'
+                'package:// の mesh が検索パスから解決できていない可能性が高い: '
+                f'{eb.result.error_message}')
+        hi, lo = eb.bounds.points[0], eb.bounds.points[1]
+        size = (hi.x - lo.x, hi.y - lo.y, hi.z - lo.z)
+        if min(size) <= 0.0:
+            return fail(f'{mesh_name} の bounds が潰れている: {size}')
+        # mm 単位の STL に 0.001 を掛けた大きさ。桁が違えば scale か
+        # 読み込んだファイルそのものが想定と違う。
+        if max(size) > 1.0:
+            return fail(f'{mesh_name} の bounds が大きすぎる: {size}。'
+                        'mesh の縮尺が想定と違う')
+        mesh_note = (f' / package:// mesh も解決 '
+                     f'({size[0]:.3f} x {size[1]:.3f} x {size[2]:.3f} m)')
+
+    ctx.h.delete_entity(mesh_name) if ctx.h.service_ready('delete_entity') else None
+
+    return ok(f'{name} を定義文字列から生成{mesh_note}')
+
+
 # ======================================================================
 # H. エンティティ操作と world (simulation_interfaces の任意サービス)
 # ======================================================================
