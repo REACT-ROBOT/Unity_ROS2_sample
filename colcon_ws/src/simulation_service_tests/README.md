@@ -10,15 +10,34 @@ Unity_ROS2_Robot_Simulator が `simulation_interfaces` (2.1.0) のサービス�
 
 | ID | 内容 |
 |----|------|
-| A1–A3 | 5 サービスの疎通、起動直後の状態、`Result` コードの規約適合 |
+| A1–A3 | 中核 7 サービスの疎通、起動直後の状態、`Result` コードの規約適合 |
 | B1–B3 | 状態遷移 (start / 同一状態 / 不正値の拒否) |
 | C1–C6 | スポーン、基準状態の記録、ground_truth、**指令が効くことの基準取り**、pause/resume |
 | D1–D10 | **reset_simulation の全スコープ**。エンティティ生存、関節・姿勢の復元、リセット後の指令受付、サービス生存、デスポーン、再スポーン、時刻リセット、反復安定性 |
 | E1–E2 | `STATE_STOPPED` でのデスポーンと、その後の再スポーン |
-| F1–F2 | `step_simulation` の未対応表明、空シーンへのリセット |
-| G1–G5 | **simulation_interfaces 2.x**。`get_simulator_features` の申告内容、`Resource` によるスポーン、`spawn_entities` (複数生成・部分失敗の報告)、`entity_namespace` によるトピック分離 |
+| F1–F2 | `step_simulation` の進み量 (`n` と `2n` の比)、空シーンへのリセット |
+| G1–G5 | **simulation_interfaces 2.x**。**申告とサービス実体の突き合わせ**、`Resource` によるスポーン、`spawn_entities` (複数生成・部分失敗の報告)、`entity_namespace` によるトピック分離 |
+| H1–H8 | **任意サービス**。`get_entities` / `get_entity_state` と ground_truth の一致、`set_entity_state`、`entity_info`、`get_entity_bounds`、`EntityFilters`、`delete_entity`、`get_spawnables` / 名前付き姿勢、world のライフサイクル |
 
 ★ 印のシナリオ (D5 / D8 / D10) が報告されている不具合の直接検証にあたる。
+
+**H 群は「実装していなければ SKIP」** で流す。エンティティ操作と world は
+simulation_interfaces でも任意扱いなので、未実装を FAIL にはしない。A1 も中核 7 サービス
+しか必須にしていない (任意サービスまで必須にすると、1 つ足りないだけで以降が全部 SKIP に
+なってしまう)。申告と実装が食い違っていないかは G1 が見る。
+
+### G1 にベタ書きの「未実装リスト」を置かないこと
+
+G1 はかつて「この機能は未実装のはず」という名前のリストを持っていた。これはある時点の
+シミュレータの写しでしかなく、実装が進むたびにテスト側が嘘になる (実際 world 系と
+`step_simulation` を実装したときに G1 だけが落ちた)。
+
+いまは `sim_harness.FEATURE_SERVICE_MAP` の対応表を使って
+
+- 申告しているのに ROS グラフにサービスが無い
+- サービスはあるのに申告していない
+
+の両方を突き合わせる。**新しいサービスを実装したら、対応表に 1 行足すだけでよい。**
 
 判定は 5 種類:
 
@@ -104,3 +123,13 @@ ros2 run simulation_service_tests service_conformance --only D5 D8 D10  # 一部
 - **ros2_control を経由しない。** `joint_command` トピックへ直接 publish し、
   `joint_states` を直接読む。controller_manager やスポナーを挟まないぶん、
   失敗したときに原因がシミュレータ側だと切り分けやすい。
+- **`get_spawnables` / 名前付き姿勢 / world 一覧は設定ファイル次第。**
+  シミュレータには ament のパッケージ検索パスに相当する仕組みが無いので、
+  探索先は `simulation_resources.json` で与える。`service_conformance_test.sh` が
+  テスト用のものを `/tmp/service_conformance/` に生成し、環境変数
+  `SIMULATION_RESOURCES_CONFIG` で指してからシミュレータを起動する。
+  **シミュレータは起動時に一度だけ読む**ので、後から書き換えても効かない。
+  `--no-sim` で相乗りする場合はこの設定が無いことがあり、そのときは H7 が
+  「設定なし」として空の応答を許容する。
+- **一時停止中に sim 時刻を読むには `get_entity_state`。** `joint_states` は
+  止まっているので使えない。F1 が step の進み量を測るのにこれを使っている。

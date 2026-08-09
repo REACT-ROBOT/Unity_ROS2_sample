@@ -18,20 +18,44 @@ import time
 
 from builtin_interfaces.msg import Time as TimeMsg
 from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Vector3 as Vector3Msg
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
 from sensor_msgs.msg import JointState
-from simulation_interfaces.msg import Resource, SimulationState
+from simulation_interfaces.msg import (
+    Bounds,
+    EntityCategory,
+    EntityFilters,
+    EntityInfo,
+    Resource,
+    SimulationState,
+    TagsFilter,
+)
 from simulation_interfaces.msg import SpawnEntity as SpawnEntityMsg
 from simulation_interfaces.srv import (
+    DeleteEntity,
+    GetAvailableWorlds,
+    GetCurrentWorld,
+    GetEntities,
+    GetEntitiesStates,
+    GetEntityBounds,
+    GetEntityInfo,
+    GetEntityState,
+    GetNamedPoseBounds,
+    GetNamedPoses,
     GetSimulationState,
     GetSimulatorFeatures,
+    GetSpawnables,
+    LoadWorld,
     ResetSimulation,
+    SetEntityInfo,
+    SetEntityState,
     SetSimulationState,
     SpawnEntities,
     SpawnEntity,
     StepSimulation,
+    UnloadWorld,
 )
 
 # simulation_interfaces/msg/Result.msg
@@ -56,11 +80,31 @@ MISSING_ASSETS = 107
 # SpawnEntities 固有の拡張コード
 ENTITIES_SPAWN_FAILED = 150
 
+# SetEntityState 固有の拡張コード
+INVALID_POSE = 101
+
+# LoadWorld 固有の拡張コード
+WORLD_UNSUPPORTED_FORMAT = 101
+WORLD_NO_RESOURCE = 102
+WORLD_RESOURCE_PARSE_ERROR = 103
+WORLD_MISSING_ASSETS = 104
+WORLD_UNSUPPORTED_ASSETS = 105
+WORLD_UNSUPPORTED_ELEMENTS = 106
+
+# UnloadWorld / GetCurrentWorld 固有の拡張コード
+NO_WORLD_LOADED = 101
+
+# GetAvailableWorlds 固有の拡張コード
+DEFAULT_SOURCES_FAILED = 101
+
 STATE_NAMES = {
     SimulationState.STATE_STOPPED: 'STOPPED',
     SimulationState.STATE_PLAYING: 'PLAYING',
     SimulationState.STATE_PAUSED: 'PAUSED',
     SimulationState.STATE_QUITTING: 'QUITTING',
+    # 2.0.0 で追加。ワールドを降ろしている間の状態。
+    getattr(SimulationState, 'STATE_NO_WORLD', 4): 'NO_WORLD',
+    getattr(SimulationState, 'STATE_LOADING_WORLD', 5): 'LOADING_WORLD',
 }
 
 RESULT_NAMES = {
@@ -96,8 +140,43 @@ SPAWN_RESULT_NAMES = {
 }
 
 
+# world 系サービスの追加コード。101 が SetSimulationState の
+# ALREADY_IN_TARGET_STATE と重なるので、こちらも別辞書で引く。
+WORLD_RESULT_NAMES = {
+    RESULT_FEATURE_UNSUPPORTED: 'FEATURE_UNSUPPORTED(0)',
+    RESULT_OK: 'OK(1)',
+    RESULT_NOT_FOUND: 'NOT_FOUND(2)',
+    RESULT_INCORRECT_STATE: 'INCORRECT_STATE(3)',
+    RESULT_OPERATION_FAILED: 'OPERATION_FAILED(4)',
+    WORLD_UNSUPPORTED_FORMAT: 'UNSUPPORTED_FORMAT(101) / NO_WORLD_LOADED(101)',
+    WORLD_NO_RESOURCE: 'NO_RESOURCE(102)',
+    WORLD_RESOURCE_PARSE_ERROR: 'RESOURCE_PARSE_ERROR(103)',
+    WORLD_MISSING_ASSETS: 'MISSING_ASSETS(104)',
+    WORLD_UNSUPPORTED_ASSETS: 'UNSUPPORTED_ASSETS(105)',
+    WORLD_UNSUPPORTED_ELEMENTS: 'UNSUPPORTED_ELEMENTS(106)',
+}
+
+# SetEntityState の追加コード
+ENTITY_RESULT_NAMES = {
+    RESULT_FEATURE_UNSUPPORTED: 'FEATURE_UNSUPPORTED(0)',
+    RESULT_OK: 'OK(1)',
+    RESULT_NOT_FOUND: 'NOT_FOUND(2)',
+    RESULT_INCORRECT_STATE: 'INCORRECT_STATE(3)',
+    RESULT_OPERATION_FAILED: 'OPERATION_FAILED(4)',
+    INVALID_POSE: 'INVALID_POSE(101)',
+}
+
+
 def result_name(code):
     return RESULT_NAMES.get(code, f'UNKNOWN({code})')
+
+
+def world_result_name(code):
+    return WORLD_RESULT_NAMES.get(code, f'UNKNOWN({code})')
+
+
+def entity_result_name(code):
+    return ENTITY_RESULT_NAMES.get(code, f'UNKNOWN({code})')
 
 
 def spawn_result_name(code):
@@ -118,6 +197,45 @@ def euler_to_quaternion(roll, pitch, yaw):
         cr * cp * sy - sr * sp * cy,
         cr * cp * cy + sr * sp * sy,
     )
+
+
+# A1 が「無いと話にならない」と見なすサービス。ここに無いものは任意扱いで、
+# 実装状況は G1 が get_simulator_features の申告と突き合わせて確かめる。
+CORE_SERVICES = (
+    'get_simulation_state',
+    'set_simulation_state',
+    'reset_simulation',
+    'spawn_entity',
+    'spawn_entities',
+    'step_simulation',
+    'get_simulator_features',
+)
+
+# SimulatorFeatures の値と、それが 1 対 1 で対応するサービス。
+# 「申告しているのにサービスが無い」「サービスがあるのに申告していない」の
+# 両方を機械的に検出するために使う。フラグだけの機能 (SIMULATION_RESET_TIME や
+# ENTITY_BOUNDS_BOX など) は対応するサービスが無いのでここには入れない。
+FEATURE_SERVICE_MAP = {
+    'SPAWNING': 'spawn_entity',
+    'SPAWNING_ENTITIES': 'spawn_entities',
+    'DELETING': 'delete_entity',
+    'SPAWNABLES': 'get_spawnables',
+    'NAMED_POSES': 'get_named_poses',
+    'POSE_BOUNDS': 'get_named_pose_bounds',
+    'ENTITY_STATE_GETTING': 'get_entity_state',
+    'ENTITY_STATE_SETTING': 'set_entity_state',
+    'ENTITY_INFO_GETTING': 'get_entity_info',
+    'ENTITY_INFO_SETTING': 'set_entity_info',
+    'ENTITY_BOUNDS': 'get_entity_bounds',
+    'SIMULATION_RESET': 'reset_simulation',
+    'SIMULATION_STATE_GETTING': 'get_simulation_state',
+    'SIMULATION_STATE_SETTING': 'set_simulation_state',
+    'STEP_SIMULATION_SINGLE': 'step_simulation',
+    'WORLD_LOADING': 'load_world',
+    'WORLD_UNLOADING': 'unload_world',
+    'WORLD_INFO_GETTING': 'get_current_world',
+    'AVAILABLE_WORLDS': 'get_available_worlds',
+}
 
 
 class ServiceTimeout(Exception):
@@ -176,6 +294,38 @@ class SimHarness(Node):
                 SpawnEntities, profile.spawn_entities_service),
             'get_simulator_features': self.create_client(
                 GetSimulatorFeatures, profile.features_service),
+            # --- ここから下は simulation_interfaces の任意サービス -----------
+            # 揃っていなくても A1 は落とさない (H 群が個別に確かめる)。
+            'delete_entity': self.create_client(
+                DeleteEntity, profile.delete_entity_service),
+            'get_entities': self.create_client(
+                GetEntities, profile.get_entities_service),
+            'get_entities_states': self.create_client(
+                GetEntitiesStates, profile.get_entities_states_service),
+            'get_entity_state': self.create_client(
+                GetEntityState, profile.get_entity_state_service),
+            'set_entity_state': self.create_client(
+                SetEntityState, profile.set_entity_state_service),
+            'get_entity_info': self.create_client(
+                GetEntityInfo, profile.get_entity_info_service),
+            'set_entity_info': self.create_client(
+                SetEntityInfo, profile.set_entity_info_service),
+            'get_entity_bounds': self.create_client(
+                GetEntityBounds, profile.get_entity_bounds_service),
+            'get_spawnables': self.create_client(
+                GetSpawnables, profile.get_spawnables_service),
+            'get_named_poses': self.create_client(
+                GetNamedPoses, profile.get_named_poses_service),
+            'get_named_pose_bounds': self.create_client(
+                GetNamedPoseBounds, profile.get_named_pose_bounds_service),
+            'load_world': self.create_client(
+                LoadWorld, profile.load_world_service),
+            'unload_world': self.create_client(
+                UnloadWorld, profile.unload_world_service),
+            'get_current_world': self.create_client(
+                GetCurrentWorld, profile.get_current_world_service),
+            'get_available_worlds': self.create_client(
+                GetAvailableWorlds, profile.get_available_worlds_service),
         }
 
         # ROS-TCP-Endpoint 側の publisher は既定 QoS (RELIABLE / VOLATILE / depth 10)
@@ -215,10 +365,16 @@ class SimHarness(Node):
     # ------------------------------------------------------------------
     # サービス呼び出し
     # ------------------------------------------------------------------
-    def wait_for_services(self, timeout):
-        """全サービスが discovery されるまで待ち、見つからなかった名前を返す。"""
+    def wait_for_services(self, timeout, names=None):
+        """サービスが discovery されるまで待ち、見つからなかった名前を返す。
+
+        ``names`` を省略すると CORE_SERVICES だけを見る。任意サービスまで
+        必須にすると、それらを実装していないシミュレータで A1 が落ちて
+        以降のシナリオが全部 SKIP になってしまうため。
+        """
+        names = list(CORE_SERVICES if names is None else names)
         deadline = time.monotonic() + timeout
-        missing = list(self._srv_clients.keys())
+        missing = names
         while missing and time.monotonic() < deadline:
             missing = [
                 name for name in missing
@@ -227,6 +383,11 @@ class SimHarness(Node):
             if missing:
                 time.sleep(0.2)
         return missing
+
+    def service_ready(self, name):
+        """そのサービスが ROS グラフに現れているか。"""
+        client = self._srv_clients.get(name)
+        return client is not None and client.service_is_ready()
 
     def _call(self, name, request, timeout=None):
         timeout = self.service_timeout if timeout is None else timeout
@@ -352,6 +513,163 @@ class SimHarness(Node):
 
     def simulator_features(self, timeout=None):
         return self._call('get_simulator_features', GetSimulatorFeatures.Request(), timeout)
+
+    # ------------------------------------------------------------------
+    # エンティティ系 (simulation_interfaces の任意サービス)
+    # ------------------------------------------------------------------
+    def delete_entity(self, entity, timeout=None):
+        req = DeleteEntity.Request()
+        req.entity = entity
+        return self._call('delete_entity', req, timeout)
+
+    @staticmethod
+    def entity_filters(name_regex='', categories=(), tags=(), tags_mode=0, bounds=None):
+        """EntityFilters を組み立てる。省略した項目は「絞り込まない」。"""
+        filters = EntityFilters()
+        filters.filter = name_regex
+        filters.categories = [
+            c if isinstance(c, EntityCategory) else EntityCategory(category=int(c))
+            for c in categories
+        ]
+        tags_filter = TagsFilter()
+        tags_filter.tags = list(tags)
+        tags_filter.filter_mode = tags_mode
+        filters.tags = tags_filter
+        if bounds is not None:
+            filters.bounds = bounds
+        return filters
+
+    @staticmethod
+    def sphere_bounds(center, radius):
+        """Bounds.msg の TYPE_SPHERE。1 点目が中心、2 点目の x が半径。"""
+        bounds = Bounds()
+        bounds.type = Bounds.TYPE_SPHERE
+        first = Vector3Msg()
+        first.x, first.y, first.z = (float(v) for v in center)
+        second = Vector3Msg()
+        second.x = float(radius)
+        bounds.points = [first, second]
+        return bounds
+
+    def get_entities(self, filters=None, timeout=None):
+        req = GetEntities.Request()
+        if filters is not None:
+            req.filters = filters
+        return self._call('get_entities', req, timeout)
+
+    def get_entities_states(self, filters=None, timeout=None):
+        req = GetEntitiesStates.Request()
+        if filters is not None:
+            req.filters = filters
+        return self._call('get_entities_states', req, timeout)
+
+    def get_entity_state(self, entity, timeout=None):
+        req = GetEntityState.Request()
+        req.entity = entity
+        return self._call('get_entity_state', req, timeout)
+
+    def set_entity_state(self, entity, pose=None, twist=None, timeout=None,
+                         orientation=None):
+        """姿勢/速度を書き換える。
+
+        ``pose`` は ``(x, y, z, R, P, Y)``。``orientation`` に
+        ``(x, y, z, w)`` を渡すと RPY より優先する (不正な
+        クォータニオンを送って INVALID_POSE を確かめるため)。
+        """
+        req = SetEntityState.Request()
+        req.entity = entity
+        req.set_pose = pose is not None or orientation is not None
+        req.set_twist = twist is not None
+        req.set_acceleration = False
+        if pose is not None:
+            req.state.pose.position.x = float(pose[0])
+            req.state.pose.position.y = float(pose[1])
+            req.state.pose.position.z = float(pose[2])
+            qx, qy, qz, qw = euler_to_quaternion(
+                float(pose[3]), float(pose[4]), float(pose[5]))
+            req.state.pose.orientation.x = qx
+            req.state.pose.orientation.y = qy
+            req.state.pose.orientation.z = qz
+            req.state.pose.orientation.w = qw
+        else:
+            req.state.pose.orientation.w = 1.0
+        if orientation is not None:
+            req.state.pose.orientation.x = float(orientation[0])
+            req.state.pose.orientation.y = float(orientation[1])
+            req.state.pose.orientation.z = float(orientation[2])
+            req.state.pose.orientation.w = float(orientation[3])
+        if twist is not None:
+            req.state.twist.linear.x = float(twist[0])
+            req.state.twist.linear.y = float(twist[1])
+            req.state.twist.linear.z = float(twist[2])
+            req.state.twist.angular.x = float(twist[3])
+            req.state.twist.angular.y = float(twist[4])
+            req.state.twist.angular.z = float(twist[5])
+        return self._call('set_entity_state', req, timeout)
+
+    def get_entity_info(self, entity, timeout=None):
+        req = GetEntityInfo.Request()
+        req.entity = entity
+        return self._call('get_entity_info', req, timeout)
+
+    def set_entity_info(self, entity, category=None, description='', tags=(), timeout=None):
+        req = SetEntityInfo.Request()
+        req.entity = entity
+        info = EntityInfo()
+        info.category = EntityCategory(
+            category=int(EntityCategory.CATEGORY_OBJECT if category is None else category))
+        info.description = description
+        info.tags = list(tags)
+        req.info = info
+        return self._call('set_entity_info', req, timeout)
+
+    def get_entity_bounds(self, entity, timeout=None):
+        req = GetEntityBounds.Request()
+        req.entity = entity
+        return self._call('get_entity_bounds', req, timeout)
+
+    def get_spawnables(self, sources=(), timeout=None):
+        req = GetSpawnables.Request()
+        req.sources = list(sources)
+        return self._call('get_spawnables', req, timeout)
+
+    def get_named_poses(self, tags=(), tags_mode=0, timeout=None):
+        req = GetNamedPoses.Request()
+        req.tags.tags = list(tags)
+        req.tags.filter_mode = tags_mode
+        return self._call('get_named_poses', req, timeout)
+
+    def get_named_pose_bounds(self, name, timeout=None):
+        req = GetNamedPoseBounds.Request()
+        req.name = name
+        return self._call('get_named_pose_bounds', req, timeout)
+
+    # ------------------------------------------------------------------
+    # world 系
+    # ------------------------------------------------------------------
+    def load_world(self, uri='', resource_string='', fail_on_unsupported_element=False,
+                   ignore_missing_assets=False, timeout=None):
+        req = LoadWorld.Request()
+        req.world_resource.uri = uri
+        req.world_resource.resource_string = resource_string
+        req.fail_on_unsupported_element = fail_on_unsupported_element
+        req.ignore_missing_or_unsupported_assets = ignore_missing_assets
+        return self._call('load_world', req, timeout)
+
+    def unload_world(self, timeout=None):
+        return self._call('unload_world', UnloadWorld.Request(), timeout)
+
+    def get_current_world(self, timeout=None):
+        return self._call('get_current_world', GetCurrentWorld.Request(), timeout)
+
+    def get_available_worlds(self, additional_sources=(), tags=(), offline_only=False,
+                             continue_on_error=True, timeout=None):
+        req = GetAvailableWorlds.Request()
+        req.additional_sources = list(additional_sources)
+        req.filter.tags = list(tags)
+        req.offline_only = offline_only
+        req.continue_on_error = continue_on_error
+        return self._call('get_available_worlds', req, timeout)
 
     # ------------------------------------------------------------------
     # 状態遷移のショートカット

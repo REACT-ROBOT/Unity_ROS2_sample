@@ -103,6 +103,42 @@ if [[ ${START_SIM} -eq 1 ]]; then
     exit 2
   fi
 
+  # get_spawnables / get_named_poses / get_available_worlds が返す中身は
+  # simulation_resources.json で与える決まりなので、テスト用のものを作って
+  # 環境変数で指す。シミュレータは起動時に一度だけ読むため、起動より前に
+  # 用意しておく必要がある (--no-sim のときは H7/H8 が空の応答を受け取り、
+  # 「設定なし」として扱われる)。
+  WORLD_DIR="${OUT_DIR}/worlds"
+  # urdf の置き場所は下のテスト実行時に作られるが、GetSpawnables は
+  # 呼ばれるたびに走査するので、先に作っておけば「読めないソース」に数えられない。
+  mkdir -p "${WORLD_DIR}" "${OUT_DIR}/urdf"
+  cat > "${WORLD_DIR}/conformance_world.json" <<'EOF'
+{ "objects": [
+  { "type": "Cube",   "position": [3.0, 0.5, 0.0], "rotationEuler": [0, 0, 0],
+    "scale": [1, 1, 1], "meshPath": "", "isActive": true },
+  { "type": "Sphere", "position": [-3.0, 0.5, 0.0], "rotationEuler": [0, 0, 0],
+    "scale": [1, 1, 1], "meshPath": "", "isActive": true }
+] }
+EOF
+  RESOURCES_CONFIG="${OUT_DIR}/simulation_resources.json"
+  cat > "${RESOURCES_CONFIG}" <<EOF
+{
+  "spawnable_paths": ["${OUT_DIR}/urdf"],
+  "world_paths": ["${WORLD_DIR}"],
+  "named_poses": [
+    { "name": "conformance_spawn", "description": "適合性テスト用のスポーン地点",
+      "tags": ["spawn"], "position": [0.0, 0.0, 0.0], "rpy": [0.0, 0.0, 0.0],
+      "bounds": { "type": "box", "min": [-0.5, -0.5, 0.0], "max": [0.5, 0.5, 1.0] } },
+    { "name": "conformance_goal", "description": "適合性テスト用の目標地点",
+      "tags": ["navigation_goal"], "position": [2.0, 1.0, 0.0],
+      "orientation": [0.0, 0.0, 0.0, 1.0],
+      "bounds": { "type": "sphere", "center": [0.0, 0.0, 0.5], "radius": 1.0 } }
+  ]
+}
+EOF
+  export SIMULATION_RESOURCES_CONFIG="${RESOURCES_CONFIG}"
+  log "リソース設定を生成: ${RESOURCES_CONFIG}"
+
   log "シミュレータを起動 (${SIM_DIR})"
   export DISPLAY="${DISPLAY:-:1}"
   export XAUTHORITY="${XAUTHORITY:-/.Xauthority}"

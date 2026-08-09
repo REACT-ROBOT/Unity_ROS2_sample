@@ -34,6 +34,26 @@ class Profile:
         # simulation_interfaces 2.x で追加されたもの
         self.spawn_entities_service = d.get('spawn_entities_service', '/spawn_entities')
         self.features_service = d.get('features_service', '/get_simulator_features')
+        # エンティティ系 (任意)
+        self.delete_entity_service = d.get('delete_entity_service', '/delete_entity')
+        self.get_entities_service = d.get('get_entities_service', '/get_entities')
+        self.get_entities_states_service = d.get(
+            'get_entities_states_service', '/get_entities_states')
+        self.get_entity_state_service = d.get('get_entity_state_service', '/get_entity_state')
+        self.set_entity_state_service = d.get('set_entity_state_service', '/set_entity_state')
+        self.get_entity_info_service = d.get('get_entity_info_service', '/get_entity_info')
+        self.set_entity_info_service = d.get('set_entity_info_service', '/set_entity_info')
+        self.get_entity_bounds_service = d.get('get_entity_bounds_service', '/get_entity_bounds')
+        self.get_spawnables_service = d.get('get_spawnables_service', '/get_spawnables')
+        self.get_named_poses_service = d.get('get_named_poses_service', '/get_named_poses')
+        self.get_named_pose_bounds_service = d.get(
+            'get_named_pose_bounds_service', '/get_named_pose_bounds')
+        # world 系 (任意)
+        self.load_world_service = d.get('load_world_service', '/load_world')
+        self.unload_world_service = d.get('unload_world_service', '/unload_world')
+        self.get_current_world_service = d.get('get_current_world_service', '/get_current_world')
+        self.get_available_worlds_service = d.get(
+            'get_available_worlds_service', '/get_available_worlds')
 
         # --- トピック名 (未指定ならロボット名から組み立てる) ----------------
         self.joint_states_topic = d.get(

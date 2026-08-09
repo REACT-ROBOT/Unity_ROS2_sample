@@ -20,19 +20,27 @@ import traceback
 from simulation_interfaces.msg import SimulationState
 from simulation_interfaces.srv import ResetSimulation
 
-from simulation_interfaces.msg import Resource, SimulatorFeatures
+from simulation_interfaces.msg import Bounds, EntityCategory, Resource, SimulatorFeatures
 
 from .sim_harness import (
     ALREADY_IN_TARGET_STATE,
+    DEFAULT_SOURCES_FAILED,
     ENTITIES_SPAWN_FAILED,
+    FEATURE_SERVICE_MAP,
     INCORRECT_TRANSITION,
+    INVALID_POSE,
     NO_RESOURCE,
+    NO_WORLD_LOADED,
+    RESULT_FEATURE_UNSUPPORTED,
+    RESULT_NOT_FOUND,
     RESULT_OK,
     RESULT_OPERATION_FAILED,
     ServiceTimeout,
+    entity_result_name,
     result_name,
     spawn_result_name,
     state_name,
+    world_result_name,
 )
 
 PASS = 'PASS'
@@ -97,12 +105,43 @@ class Context:
         self.baseline_joints = None   # スポーン直後に落ち着いた関節位置
         self.baseline_pose = None     # スポーン直後の ground_truth 姿勢
         self.baseline_sim_time = None
+        self.features = set()         # G1 が読んだ get_simulator_features の申告
+        self.entity_name = None       # H 群が使い回すエンティティ名
 
     def mark(self, flag):
         self.flags.add(flag)
 
     def has(self, flag):
         return flag in self.flags
+
+
+def need_services(ctx, *names):
+    """未実装のサービスがあれば SKIP の Outcome を返す。無ければ None。
+
+    任意サービスを実装していないシミュレータでも、そのシナリオだけを
+    SKIP にして残りは流せるようにするための共通処理。
+    """
+    missing = [n for n in names if not ctx.h.service_ready(n)]
+    if missing:
+        return skip(f'未実装: {", ".join(missing)}')
+    return None
+
+
+def ensure_entity(ctx, name=None):
+    """エンティティが 1 体もなければスポーンして、その名前を返す。
+
+    シナリオは順番に流れる前提だが、``--only`` で単体実行されることも
+    あるので、必要な前提は自前で作れるようにしておく。
+    """
+    if ctx.h.service_ready('get_entities'):
+        res = ctx.h.get_entities()
+        if res.result.result == RESULT_OK and res.entities:
+            return res.entities[0]
+    wanted = name or ctx.p.robot_name
+    res = ctx.h.spawn(ctx.urdf_path, name=wanted)
+    if res.result.result != RESULT_OK:
+        return None
+    return res.entity_name or wanted
 
 
 class Result:
@@ -117,14 +156,23 @@ class Result:
 # A. 基本疎通
 # ======================================================================
 
-@scenario('A1', 'A. 基本疎通', '実装しているサービスがすべて discovery できる')
+@scenario('A1', 'A. 基本疎通', '中核サービスがすべて discovery できる')
 def a1_services_available(ctx):
+    """任意サービスの有無はここでは見ない。
+
+    エンティティ操作や world は simulation_interfaces でも任意扱いなので、
+    揃っていないことを理由に A1 を落とすと以降が全部 SKIP になってしまう。
+    実装と申告が食い違っていないかは G1 が、個々の挙動は H 群が確かめる。
+    """
     missing = ctx.h.wait_for_services(ctx.p.service_timeout)
     if missing:
         return fail(f'見つからないサービス: {", ".join(missing)}')
     ctx.mark('services')
+
+    optional = [name for name in FEATURE_SERVICE_MAP.values() if ctx.h.service_ready(name)]
     return ok('get/set_simulation_state, reset_simulation, spawn_entity, spawn_entities, '
-              'step_simulation, get_simulator_features を確認')
+              f'step_simulation, get_simulator_features を確認 '
+              f'(任意サービスは {len(set(optional))} 件が応答)')
 
 
 @scenario('A2', 'A. 基本疎通', '起動直後の状態は STOPPED', requires=('services',))
@@ -138,17 +186,20 @@ def a2_initial_state(ctx):
 
 
 @scenario('A3', 'A. 基本疎通', 'result コードが Result.msg の規約に従う (RESULT_OK == 1)',
-          requires=('services',), known_gap=True,
-          why='Unity 側が成功時に既定値 0 (= RESULT_FEATURE_UNSUPPORTED) を返している')
+          requires=('services',))
 def a3_result_code_convention(ctx):
+    """かつては known_gap 宣言付きだった。
+
+    「Unity 側が成功時に既定値 0 (= RESULT_FEATURE_UNSUPPORTED) を返す」は
+    修正済みなので、宣言を外して回帰したら FAIL として出るようにしてある。
+    """
     res = ctx.h.get_state()
     code = res.result.result
     if code == RESULT_OK:
         return ok('RESULT_OK(1) を返している')
-    return gap(
+    return fail(
         f'get_simulation_state が {result_name(code)} を返す。'
-        'Result.msg では成功 = 1、0 は FEATURE_UNSUPPORTED を意味する。'
-        'クライアント側 (simulation_ros2_utils) も 0 を成功として扱っており、両方の修正が要る')
+        'Result.msg では成功 = 1、0 は FEATURE_UNSUPPORTED を意味する')
 
 
 # ======================================================================
@@ -574,18 +625,93 @@ def e2_restart_after_stop(ctx):
 # F. 仕様適合 / 未実装項目
 # ======================================================================
 
-@scenario('F1', 'F. 仕様適合', 'step_simulation は未対応を明示的に返す', requires=('services',))
+@scenario('F1', 'F. 仕様適合', 'step_simulation が一時停止中に指定ステップだけ進める',
+          requires=('services',))
 def f1_step_simulation(ctx):
+    """StepSimulation.srv の規定を実際に確かめる。
+
+    以前は「未対応を明示的に返すこと」だけを見ていて、実装済みでも
+    PASS になる書き方だった。実装された以上、進む量まで見る。
+
+    刻み幅 (fixed timestep) はシミュレータ側の設定なのでテストからは
+    分からない。そこで絶対値では判定せず、``n`` ステップと ``2n``
+    ステップの進み量が 2 倍になることで比例関係を確かめる。
+    """
+    features = ctx.features or set(ctx.h.simulator_features().features.features)
+    implemented = SimulatorFeatures.STEP_SIMULATION_SINGLE in features
+
+    # まず「一時停止していないときは OPERATION_FAILED」(仕様どおり) を見る
+    ctx.h.play()
+    time.sleep(0.3)
     try:
         res = ctx.h.step(1)
     except ServiceTimeout as exc:
         return fail(f'step_simulation が無応答 ({exc})')
-    code = res.result.result
-    if code in (RESULT_OPERATION_FAILED, 0):
-        return ok(f'{result_name(code)}: {res.result.error_message}')
-    if code == RESULT_OK:
-        return ok('実装されている')
-    return fail(f'想定外の応答 {result_name(code)}: {res.result.error_message}')
+
+    if not implemented:
+        code = res.result.result
+        if code in (RESULT_OPERATION_FAILED, RESULT_FEATURE_UNSUPPORTED):
+            return ok(f'未対応を明示している: {result_name(code)}: {res.result.error_message}')
+        return fail(f'未対応と申告しているのに {result_name(code)} が返った')
+
+    if res.result.result != RESULT_OPERATION_FAILED:
+        return fail(
+            f'PLAYING 中の step_simulation が {result_name(res.result.result)} を返した。'
+            'StepSimulation.srv は「一時停止していなければ OPERATION_FAILED」と定めている')
+
+    entity = ensure_entity(ctx)
+    if entity is None:
+        return skip('エンティティを用意できなかった')
+    if not ctx.h.service_ready('get_entity_state'):
+        # sim 時刻を停止中に読む手段が無い。停止したままであることだけ確かめる。
+        ctx.h.pause()
+        time.sleep(0.3)
+        res = ctx.h.step(10)
+        if res.result.result != RESULT_OK:
+            return fail(f'一時停止中の step_simulation が {result_name(res.result.result)}')
+        if ctx.h.current_state() != SimulationState.STATE_PAUSED:
+            return fail('step_simulation の後に PAUSED へ戻っていない')
+        return ok('進み量は get_entity_state が無いため未確認 (OK かつ PAUSED 維持は確認)')
+
+    ctx.h.pause()
+    time.sleep(0.3)
+
+    def sim_time():
+        res = ctx.h.get_entity_state(entity)
+        if res.result.result != RESULT_OK:
+            return None
+        stamp = res.state.header.stamp
+        return stamp.sec + stamp.nanosec * 1e-9
+
+    n = 25
+    t0 = sim_time()
+    if t0 is None:
+        return skip(f"'{entity}' の状態を取得できなかった")
+    first = ctx.h.step(n, timeout=max(ctx.p.service_timeout, 30.0))
+    if first.result.result != RESULT_OK:
+        return fail(f'一時停止中の step_simulation が {result_name(first.result.result)}: '
+                    f'{first.result.error_message}')
+    t1 = sim_time()
+    second = ctx.h.step(2 * n, timeout=max(ctx.p.service_timeout, 60.0))
+    if second.result.result != RESULT_OK:
+        return fail(f'{2 * n} ステップの step_simulation が {result_name(second.result.result)}')
+    t2 = sim_time()
+    if t1 is None or t2 is None:
+        return skip('ステップ後の sim 時刻を取得できなかった')
+
+    d1, d2 = t1 - t0, t2 - t1
+    if d1 <= 0:
+        return fail(f'{n} ステップ進めたのに sim 時刻が進んでいない ({t0:.3f} -> {t1:.3f})')
+    ratio = d2 / d1
+    if not 1.7 <= ratio <= 2.3:
+        return fail(
+            f'進み量が比例しない: {n} ステップで {d1:.4f}s、{2 * n} ステップで {d2:.4f}s '
+            f'(比 {ratio:.2f}、期待は約 2.0)')
+    if ctx.h.current_state() != SimulationState.STATE_PAUSED:
+        return fail('step_simulation の後に PAUSED へ戻っていない')
+
+    return ok(f'{n} ステップ={d1:.4f}s、{2 * n} ステップ={d2:.4f}s (比 {ratio:.2f})、'
+              f'1 ステップ≒{d1 / n * 1000:.1f}ms、終了後も PAUSED')
 
 
 @scenario('F2', 'F. 仕様適合', 'エンティティが無い状態でリセットしてもエラーにならない',
@@ -611,44 +737,64 @@ def f2_reset_empty_scene(ctx):
 # G. simulation_interfaces 2.x の新インターフェース
 # ======================================================================
 
-@scenario('G1', 'G. interfaces 2.x', 'get_simulator_features が対応機能を申告する',
+@scenario('G1', 'G. interfaces 2.x', 'get_simulator_features の申告がサービスの実体と一致する',
           requires=('services',))
 def g1_simulator_features(ctx):
+    """申告と実装のずれを両方向で検出する。
+
+    以前はここに「未実装のはず」の機能名をベタ書きしていたが、それは
+    ある時点のシミュレータの写しでしかなく、実装が進むたびにテスト側が
+    嘘になった (実際 world 系と step_simulation の実装時に G1 だけが落ちた)。
+    いまは ``FEATURE_SERVICE_MAP`` を使って
+
+      * 申告しているのに ROS グラフにサービスが無い
+      * サービスはあるのに申告していない
+
+    の両方を突き合わせる。こうしておけば、対応表に載っている限り
+    新しいサービスを実装してもテスト側の書き換えは要らない。
+    """
     res = ctx.h.simulator_features()
     features = set(res.features.features)
     formats = list(res.features.spawn_formats)
 
-    # 実装しているものは必ず載っているべき
+    # 1 対 1 で対応するサービスが無い機能 (フラグだけのもの) は対象外。
+    advertised_but_absent = []
+    present_but_unadvertised = []
+    for feature_name, service in FEATURE_SERVICE_MAP.items():
+        code = getattr(SimulatorFeatures, feature_name, None)
+        if code is None:
+            continue  # simulation_interfaces が古く、この機能を知らない
+        advertised = code in features
+        ready = ctx.h.service_ready(service)
+        if advertised and not ready:
+            advertised_but_absent.append(f'{feature_name} ({service})')
+        elif ready and not advertised:
+            present_but_unadvertised.append(f'{feature_name} ({service})')
+
+    if advertised_but_absent:
+        return fail('申告されているのにサービスが見つからない: '
+                    + ', '.join(sorted(advertised_but_absent)))
+    if present_but_unadvertised:
+        return fail('サービスはあるのに申告されていない: '
+                    + ', '.join(sorted(present_but_unadvertised)))
+
+    # 対応表に無い機能のうち、これだけは必ず申告されているべきもの
     required = {
-        'SPAWNING': SimulatorFeatures.SPAWNING,
-        'SPAWNING_ENTITIES': SimulatorFeatures.SPAWNING_ENTITIES,
-        'SIMULATION_RESET': SimulatorFeatures.SIMULATION_RESET,
         'SIMULATION_RESET_STATE': SimulatorFeatures.SIMULATION_RESET_STATE,
         'SIMULATION_RESET_SPAWNED': SimulatorFeatures.SIMULATION_RESET_SPAWNED,
-        'SIMULATION_STATE_GETTING': SimulatorFeatures.SIMULATION_STATE_GETTING,
-        'SIMULATION_STATE_SETTING': SimulatorFeatures.SIMULATION_STATE_SETTING,
     }
     missing = [name for name, code in required.items() if code not in features]
     if missing:
         return fail(f'実装済みなのに申告されていない機能: {", ".join(missing)}')
 
-    # 未実装のものを申告してはいけない。クライアントは使えると判断してしまう。
-    forbidden = {
-        'STEP_SIMULATION_SINGLE': SimulatorFeatures.STEP_SIMULATION_SINGLE,
-        'WORLD_LOADING': SimulatorFeatures.WORLD_LOADING,
-        'WORLD_UNLOADING': SimulatorFeatures.WORLD_UNLOADING,
-        'ENTITY_STATE_SETTING': SimulatorFeatures.ENTITY_STATE_SETTING,
-        'DELETING': SimulatorFeatures.DELETING,
-    }
-    wrong = [name for name, code in forbidden.items() if code in features]
-    if wrong:
-        return fail(f'未実装なのに申告されている機能: {", ".join(wrong)}')
-
     if 'urdf' not in formats:
         return fail(f'spawn_formats に urdf が無い: {formats}')
 
+    ctx.features = features
     ctx.mark('features')
-    return ok(f'{len(features)} 機能を申告 / spawn_formats={formats}')
+    checked = len([n for n in FEATURE_SERVICE_MAP if getattr(SimulatorFeatures, n, None) is not None])
+    return ok(f'{len(features)} 機能を申告 / サービスと突き合わせ {checked} 件が一致 / '
+              f'spawn_formats={formats}')
 
 
 @scenario('G2', 'G. interfaces 2.x', 'spawn_entity が Resource.uri を受け付ける',
@@ -770,6 +916,374 @@ def g5_entity_namespace(ctx):
 
     # 元の名前のトピックが使われていないことも確かめる (名前空間の付け忘れ検出)
     return ok(f'{expected} を確認')
+
+
+# ======================================================================
+# H. エンティティ操作と world (simulation_interfaces の任意サービス)
+# ======================================================================
+#
+# ここから下は「実装していなければ SKIP」で流す。任意サービスなので、
+# 未実装のシミュレータを FAIL 扱いにはしない (申告と実体が食い違って
+# いるかどうかは G1 が見ている)。
+
+@scenario('H1', 'H. エンティティ操作', 'get_entities / get_entity_state が ground_truth と一致する',
+          requires=('services',))
+def h1_entity_state(ctx):
+    unmet = need_services(ctx, 'get_entities', 'get_entity_state')
+    if unmet:
+        return unmet
+
+    # 前段の名前空間テストなどが残っているので、まっさらから始める
+    ctx.h.stop()
+    time.sleep(0.5)
+    ctx.h.play()
+    time.sleep(0.3)
+    name = f'{ctx.p.robot_name}_state'
+    res = ctx.h.spawn(ctx.urdf_path, name=name)
+    if res.result.result != RESULT_OK:
+        return fail(f'スポーンが {spawn_result_name(res.result.result)}')
+    time.sleep(ctx.p.spawn_settle_time)
+
+    listed = ctx.h.get_entities()
+    if listed.result.result != RESULT_OK:
+        return fail(f'get_entities が {result_name(listed.result.result)}')
+    if name not in listed.entities:
+        return fail(f'get_entities に {name} が出てこない: {list(listed.entities)}')
+
+    state = ctx.h.get_entity_state(name)
+    if state.result.result != RESULT_OK:
+        return fail(f'get_entity_state が {result_name(state.result.result)}')
+
+    truth = ctx.h.base_pose(ctx.p.topic_timeout)
+    if truth is None:
+        return skip('ground_truth が来ないので突き合わせできない')
+
+    p = state.state.pose.position
+    dx = abs(p.x - truth[0])
+    dy = abs(p.y - truth[1])
+    dz = abs(p.z - truth[2])
+    tol = max(ctx.p.pose_reset_tolerance, 0.05)
+    if max(dx, dy, dz) > tol:
+        return fail(
+            f'get_entity_state の姿勢が ground_truth と食い違う: '
+            f'service ({p.x:+.3f}, {p.y:+.3f}, {p.z:+.3f}) vs '
+            f'topic ({truth[0]:+.3f}, {truth[1]:+.3f}, {truth[2]:+.3f})。'
+            'ROS (右手系 Z 上) と Unity (左手系 Y 上) の読み替えを疑うこと')
+
+    frame = state.state.header.frame_id
+    ctx.entity_name = name
+    ctx.mark('entity_services')
+    return ok(f'{name}: ({p.x:+.3f}, {p.y:+.3f}, {p.z:+.3f}) が ground_truth と一致 '
+              f'(frame_id={frame or "(空=world)"})')
+
+
+@scenario('H2', 'H. エンティティ操作', 'set_entity_state で瞬間移動でき、不正な姿勢は拒否される',
+          requires=('entity_services',))
+def h2_set_entity_state(ctx):
+    unmet = need_services(ctx, 'set_entity_state', 'get_entity_state')
+    if unmet:
+        return unmet
+
+    name = ctx.entity_name
+    target = (-2.0, 1.5, 0.0, 0.0, 0.0, 0.0)
+    res = ctx.h.set_entity_state(name, pose=target)
+    if res.result.result != RESULT_OK:
+        return fail(f'set_entity_state が {entity_result_name(res.result.result)}: '
+                    f'{res.result.error_message}')
+    time.sleep(0.5)
+
+    state = ctx.h.get_entity_state(name)
+    p = state.state.pose.position
+    dx, dy = abs(p.x - target[0]), abs(p.y - target[1])
+    tol = max(ctx.p.pose_reset_tolerance, 0.05)
+    if max(dx, dy) > tol:
+        return fail(f'移動先が反映されない: 要求 ({target[0]:+.2f}, {target[1]:+.2f}) '
+                    f'-> 実際 ({p.x:+.2f}, {p.y:+.2f})')
+
+    # 正規化されていないクォータニオンは INVALID_POSE(101)
+    bad = ctx.h.set_entity_state(name, orientation=(0.0, 0.0, 0.0, 0.0))
+    if bad.result.result != INVALID_POSE:
+        return fail(f'ゼロクォータニオンに対し {entity_result_name(bad.result.result)} が返った。'
+                    'SetEntityState.srv では INVALID_POSE(101)')
+
+    # 存在しないエンティティは NOT_FOUND(2)
+    missing = ctx.h.set_entity_state('no_such_entity_probe', pose=target)
+    if missing.result.result != RESULT_NOT_FOUND:
+        return fail(f'存在しないエンティティに対し {entity_result_name(missing.result.result)} が返った。'
+                    '期待値は NOT_FOUND(2)')
+
+    return ok(f'({p.x:+.2f}, {p.y:+.2f}) へ移動、不正姿勢は INVALID_POSE(101)、'
+              '未知の名前は NOT_FOUND(2)')
+
+
+@scenario('H3', 'H. エンティティ操作', 'entity_info を書き戻せてタグで絞り込める',
+          requires=('entity_services',))
+def h3_entity_info(ctx):
+    unmet = need_services(ctx, 'get_entity_info', 'set_entity_info', 'get_entities')
+    if unmet:
+        return unmet
+
+    name = ctx.entity_name
+    before = ctx.h.get_entity_info(name)
+    if before.result.result != RESULT_OK:
+        return fail(f'get_entity_info が {result_name(before.result.result)}')
+    if before.info.category.category != EntityCategory.CATEGORY_ROBOT:
+        return fail(
+            f'URDF から作ったエンティティの既定カテゴリが '
+            f'{before.info.category.category} (期待は CATEGORY_ROBOT=1)')
+
+    tag = 'conformance_probe'
+    res = ctx.h.set_entity_info(
+        name, category=EntityCategory.CATEGORY_ROBOT, description='probe', tags=[tag])
+    if res.result.result != RESULT_OK:
+        return fail(f'set_entity_info が {result_name(res.result.result)}')
+
+    after = ctx.h.get_entity_info(name)
+    if list(after.info.tags) != [tag] or after.info.description != 'probe':
+        return fail(f'書き戻した info が読み出せない: tags={list(after.info.tags)} '
+                    f'description={after.info.description!r}')
+
+    hit = ctx.h.get_entities(ctx.h.entity_filters(tags=[tag]))
+    if name not in hit.entities:
+        return fail(f'タグ {tag} で絞り込んでも {name} が出てこない: {list(hit.entities)}')
+    miss = ctx.h.get_entities(ctx.h.entity_filters(tags=['no_such_tag_probe']))
+    if miss.entities:
+        return fail(f'一致しないタグで絞り込んだのに {list(miss.entities)} が返った')
+
+    return ok(f'既定 CATEGORY_ROBOT、tags={[tag]} を書き戻して絞り込みも一致')
+
+
+@scenario('H4', 'H. エンティティ操作', 'get_entity_bounds がロボットを包む箱を返す',
+          requires=('entity_services',))
+def h4_entity_bounds(ctx):
+    unmet = need_services(ctx, 'get_entity_bounds')
+    if unmet:
+        return unmet
+
+    res = ctx.h.get_entity_bounds(ctx.entity_name)
+    if res.result.result != RESULT_OK:
+        return fail(f'get_entity_bounds が {result_name(res.result.result)}: '
+                    f'{res.result.error_message}')
+    bounds = res.bounds
+    if bounds.type != Bounds.TYPE_BOX:
+        return fail(f'bounds.type が {bounds.type}。GetEntityBounds.srv は TYPE_BOX(1) を期待する')
+    if len(bounds.points) != 2:
+        return fail(f'TYPE_BOX の points が {len(bounds.points)} 個。2 個であるべき')
+
+    hi, lo = bounds.points[0], bounds.points[1]
+    size = (hi.x - lo.x, hi.y - lo.y, hi.z - lo.z)
+    if min(size) <= 0.0:
+        return fail(f'箱の辺が 0 以下: {size}。points は (upper right, lower left) の順')
+    if max(size) > 100.0:
+        return fail(f'箱が大きすぎる: {size}。単位が m でない可能性')
+
+    return ok(f'{size[0]:.3f} x {size[1]:.3f} x {size[2]:.3f} m の箱 (基準リンク座標系)')
+
+
+@scenario('H5', 'H. エンティティ操作', 'EntityFilters の名前正規表現と bounds が効く',
+          requires=('entity_services',))
+def h5_entity_filters(ctx):
+    unmet = need_services(ctx, 'get_entities', 'get_entity_state')
+    if unmet:
+        return unmet
+
+    name = ctx.entity_name
+    exact = ctx.h.get_entities(ctx.h.entity_filters(name_regex=name))
+    if name not in exact.entities:
+        return fail(f'完全一致の正規表現で {name} が出てこない: {list(exact.entities)}')
+    nomatch = ctx.h.get_entities(ctx.h.entity_filters(name_regex='no_such_entity_probe'))
+    if nomatch.entities:
+        return fail(f'一致しない正規表現で {list(nomatch.entities)} が返った')
+
+    # いまの位置を中心にした球なら必ず引っかかる / 遠くの球なら外れる
+    state = ctx.h.get_entity_state(name)
+    p = state.state.pose.position
+    near = ctx.h.get_entities(
+        ctx.h.entity_filters(bounds=ctx.h.sphere_bounds((p.x, p.y, p.z), 2.0)))
+    if name not in near.entities:
+        return fail(f'自分の位置を中心にした半径 2m の球で {name} が出てこない: '
+                    f'{list(near.entities)}')
+    far = ctx.h.get_entities(
+        ctx.h.entity_filters(bounds=ctx.h.sphere_bounds((p.x + 500.0, p.y, p.z), 1.0)))
+    if far.entities:
+        return fail(f'500m 離れた球に {list(far.entities)} が引っかかった')
+
+    # 未対応の bounds 種別は FEATURE_UNSUPPORTED を返すこと (黙って無視しない)
+    convex = Bounds()
+    convex.type = Bounds.TYPE_CONVEX_HULL
+    convex.points = ctx.h.sphere_bounds((0.0, 0.0, 0.0), 1.0).points
+    unsupported = ctx.h.get_entities(ctx.h.entity_filters(bounds=convex))
+    supports_convex = SimulatorFeatures.ENTITY_BOUNDS_CONVEX in (ctx.features or set())
+    if not supports_convex and unsupported.result.result != RESULT_FEATURE_UNSUPPORTED:
+        return fail(
+            f'ENTITY_BOUNDS_CONVEX を申告していないのに TYPE_CONVEX_HULL が '
+            f'{result_name(unsupported.result.result)} を返した。'
+            'EntityFilters は未対応の bounds 種別に FEATURE_UNSUPPORTED を返すと定めている')
+
+    return ok('名前正規表現・球 bounds の内外・未対応 bounds の扱いを確認')
+
+
+@scenario('H6', 'H. エンティティ操作', 'delete_entity が指定した 1 体だけ消す',
+          requires=('entity_services',))
+def h6_delete_entity(ctx):
+    unmet = need_services(ctx, 'delete_entity', 'get_entities')
+    if unmet:
+        return unmet
+
+    keep = ctx.entity_name
+    victim = f'{ctx.p.robot_name}_victim'
+    res = ctx.h.spawn(ctx.urdf_path, name=victim, pose=(0.0, -2.5, 0.0, 0.0, 0.0, 0.0))
+    if res.result.result != RESULT_OK:
+        return fail(f'2 体目のスポーンが {spawn_result_name(res.result.result)}')
+    time.sleep(ctx.p.spawn_settle_time)
+
+    deleted = ctx.h.delete_entity(victim)
+    if deleted.result.result != RESULT_OK:
+        return fail(f'delete_entity が {result_name(deleted.result.result)}: '
+                    f'{deleted.result.error_message}')
+
+    again = ctx.h.delete_entity(victim)
+    if again.result.result != RESULT_NOT_FOUND:
+        return fail(f'消した後の delete_entity が {result_name(again.result.result)}。'
+                    '期待値は NOT_FOUND(2)')
+
+    remaining = ctx.h.get_entities()
+    if victim in remaining.entities:
+        return fail(f'削除したはずの {victim} が残っている: {list(remaining.entities)}')
+    if keep not in remaining.entities:
+        return fail(f'消していない {keep} まで消えた: {list(remaining.entities)}')
+
+    return ok(f'{victim} だけ消え、{keep} は残った。再削除は NOT_FOUND(2)')
+
+
+@scenario('H7', 'H. エンティティ操作', 'get_spawnables / 名前付き姿勢が応答する',
+          requires=('services',))
+def h7_resource_queries(ctx):
+    unmet = need_services(ctx, 'get_spawnables', 'get_named_poses', 'get_named_pose_bounds')
+    if unmet:
+        return unmet
+
+    spawnables = ctx.h.get_spawnables()
+    if spawnables.result.result != RESULT_OK:
+        return fail(f'get_spawnables が {result_name(spawnables.result.result)}: '
+                    f'{spawnables.result.error_message}')
+
+    poses = ctx.h.get_named_poses()
+    if poses.result.result != RESULT_OK:
+        return fail(f'get_named_poses が {result_name(poses.result.result)}: '
+                    f'{poses.result.error_message}')
+
+    # 存在しない名前は NOT_FOUND(2)
+    missing = ctx.h.get_named_pose_bounds('no_such_named_pose_probe')
+    if missing.result.result != RESULT_NOT_FOUND:
+        return fail(f'未知の名前付き姿勢に対し {result_name(missing.result.result)} が返った。'
+                    '期待値は NOT_FOUND(2)')
+
+    if not poses.poses:
+        # 探索先の設定は起動時にしか読めないので、設定が無いこと自体は失敗にしない
+        return ok(f'spawnables {len(spawnables.spawnables)} 件 / 名前付き姿勢 0 件 '
+                  '(simulation_resources.json が未設定。未知の名前が NOT_FOUND なのは確認)')
+
+    first = poses.poses[0]
+    bounds = ctx.h.get_named_pose_bounds(first.name)
+    if bounds.result.result != RESULT_OK:
+        return fail(f'get_named_pose_bounds({first.name}) が '
+                    f'{result_name(bounds.result.result)}')
+
+    # タグで絞り込めること (タグが付いている姿勢がある場合のみ)
+    tagged = [p for p in poses.poses if p.tags]
+    if tagged:
+        tag = tagged[0].tags[0]
+        hit = ctx.h.get_named_poses(tags=[tag])
+        if not any(p.name == tagged[0].name for p in hit.poses):
+            return fail(f'タグ {tag} で絞り込んでも {tagged[0].name} が出てこない')
+
+    return ok(f'spawnables {len(spawnables.spawnables)} 件 / '
+              f'名前付き姿勢 {len(poses.poses)} 件 (先頭 {first.name} の bounds も取得)')
+
+
+@scenario('H8', 'H. world', 'world の読み込みと降ろしが状態と噛み合う', requires=('services',))
+def h8_world_lifecycle(ctx):
+    unmet = need_services(ctx, 'get_current_world', 'load_world', 'unload_world',
+                          'get_available_worlds')
+    if unmet:
+        return unmet
+
+    current = ctx.h.get_current_world()
+    if current.result.result != RESULT_OK:
+        return fail(f'起動時の get_current_world が '
+                    f'{world_result_name(current.result.result)}。'
+                    '起動直後は何らかのワールドが載っているはず')
+    started_with = current.world.name
+
+    listed = ctx.h.get_available_worlds()
+    if listed.result.result not in (RESULT_OK, DEFAULT_SOURCES_FAILED):
+        return fail(f'get_available_worlds が {world_result_name(listed.result.result)}')
+
+    # 読めない world を渡しても、いま載っているものが壊れないこと
+    broken = ctx.h.load_world(resource_string='{"not_a_scene": true}')
+    if broken.result.result == RESULT_OK:
+        return fail('シーンとして解釈できない resource_string が成功扱いになった')
+    still = ctx.h.get_current_world()
+    if still.result.result != RESULT_OK or still.world.name != started_with:
+        return fail('読み込みに失敗した後にワールドが失われた。'
+                    'load_world は消す前に検証すべき')
+
+    # 降ろすと STATE_NO_WORLD になり、動かせなくなる
+    unloaded = ctx.h.unload_world()
+    if unloaded.result.result != RESULT_OK:
+        return fail(f'unload_world が {world_result_name(unloaded.result.result)}')
+    if ctx.h.current_state() != getattr(SimulationState, 'STATE_NO_WORLD', 4):
+        return fail(f'unload_world 後の状態が {state_name(ctx.h.current_state())}。'
+                    'SimulationState.msg では STATE_NO_WORLD(4)')
+    again = ctx.h.unload_world()
+    if again.result.result != NO_WORLD_LOADED:
+        return fail(f'2 度目の unload_world が {world_result_name(again.result.result)}。'
+                    '期待値は NO_WORLD_LOADED(101)')
+    gone = ctx.h.get_current_world()
+    if gone.result.result != NO_WORLD_LOADED:
+        return fail(f'ワールドが無いのに get_current_world が '
+                    f'{world_result_name(gone.result.result)}')
+    blocked = ctx.h.play()
+    if blocked.result.result == RESULT_OK:
+        return fail('ワールドが無いのに PLAYING へ遷移できた。'
+                    'STATE_NO_WORLD は「開始も停止も一時停止もできない」状態')
+
+    # 読み込み直すと停止状態で戻ってくる
+    restored = ctx.h.load_world(
+        resource_string='{"objects":[{"type":"Cube","position":[0,0.5,0],'
+                        '"rotationEuler":[0,0,0],"scale":[1,1,1],'
+                        '"meshPath":"","isActive":true}]}',
+        timeout=max(ctx.p.service_timeout, 40.0))
+    if restored.result.result != RESULT_OK:
+        return fail(f'resource_string からの load_world が '
+                    f'{world_result_name(restored.result.result)}: '
+                    f'{restored.result.error_message}')
+    state = ctx.h.current_state()
+    if state != SimulationState.STATE_STOPPED:
+        return fail(f'load_world 後の状態が {state_name(state)}。'
+                    'LoadWorld.srv は「読み込み後は停止状態」と定めている')
+
+    # get_available_worlds が挙げた uri は実際に load_world へ渡せること。
+    # 一覧と読み込みで受け付ける形式がずれていないかの確認。
+    from_file = ''
+    if listed.worlds:
+        candidate = listed.worlds[0]
+        uri = candidate.world_resource.uri
+        if uri:
+            loaded = ctx.h.load_world(uri=uri, timeout=max(ctx.p.service_timeout, 40.0))
+            if loaded.result.result != RESULT_OK:
+                return fail(
+                    f'get_available_worlds が挙げた {uri} を load_world が受け付けない: '
+                    f'{world_result_name(loaded.result.result)}: {loaded.result.error_message}')
+            now = ctx.h.get_current_world()
+            if now.world.name != candidate.name:
+                return fail(f'{candidate.name} を読んだのに get_current_world が '
+                            f'{now.world.name} を返す')
+            from_file = f' / 一覧の {candidate.name} を uri で読み込み'
+
+    return ok(f'起動時={started_with} / 一覧 {len(listed.worlds)} 件 / '
+              f'不正な world で壊れない / 降ろすと NO_WORLD / 読み直すと STOPPED{from_file}')
 
 
 # ======================================================================
