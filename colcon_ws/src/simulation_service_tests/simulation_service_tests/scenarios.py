@@ -1478,17 +1478,39 @@ def i1_simulate_steps(ctx):
                     f'{result.result.error_message}')
     if status != GoalStatus.STATUS_SUCCEEDED:
         return fail(f'完走したゴールの status が {status}。期待は SUCCEEDED(4)')
-    if len(feedback) != steps:
-        return fail(f'feedback が {len(feedback)} 回。'
-                    f'{steps} ステップなら毎ステップ 1 回で {steps} 回のはず')
+    # feedback の「数」も「最後の 1 件が届くこと」も、ROS のアクションでは約束できない。
+    #
+    #   * feedback は KEEP_LAST のトピックなので、読み側が追いつかなければ
+    #     古いサンプルが上書きされて落ちる。
+    #   * 終了直前に出した feedback は、結果 (サービス応答) に追い越されうる。
+    #     rclpy のクライアントは結果を受け取った時点でその goal の feedback 購読を
+    #     畳むので、追い越された分は捨てられる。jazzy の servo_demo では毎回
+    #     末尾 2 件がこれで落ちた (20 件中 18 件、しかも落ちるのは必ず末尾)。
+    #
+    # 実際に何ステップ進んだかは下で sim 時刻から検証しているので、feedback には
+    # 「経過が逐次報告されること」だけを求める。届いたものが 1..steps の狭義単調増加な
+    # 部分列であること、および 1 件だけ (最後にまとめて 1 回) ではないことを見る。
+    if not feedback:
+        return fail('feedback が 1 件も来ていない')
 
     completed = [f.completed_steps for f in feedback]
     remaining = [f.remaining_steps for f in feedback]
-    if completed != list(range(1, steps + 1)):
-        return fail(f'completed_steps が 1..{steps} の順になっていない: {completed}')
     if any(c + r != steps for c, r in zip(completed, remaining)):
         return fail(f'completed_steps + remaining_steps が {steps} にならない: '
                     f'{list(zip(completed, remaining))}')
+    if completed != sorted(set(completed)):
+        return fail(f'completed_steps が狭義単調増加になっていない: {completed}')
+    if not set(completed) <= set(range(1, steps + 1)):
+        return fail(f'completed_steps に 1..{steps} の範囲外が混じっている: {completed}')
+    if len(feedback) < 2:
+        return fail('feedback が 1 件だけ。ステップごとの経過報告ではなく、'
+                    '最後にまとめて 1 回出しているだけの可能性がある')
+    if len(feedback) * 2 < steps:
+        # 半分以上落ちるのは終了直前の追い越しでは説明がつかない
+        return fail(f'feedback が {len(feedback)}/{steps} 件しか来ていない。'
+                    '取りこぼしにしては少なすぎる')
+    dropped = steps - len(feedback)
+    drop_note = f' (末尾 {dropped} 件は結果に追い越されて欠落)' if dropped else ''
 
     if before is None or after is None:
         return skip('sim 時刻を取得できなかった')
@@ -1499,7 +1521,7 @@ def i1_simulate_steps(ctx):
         return fail('simulate_steps の後に PAUSED へ戻っていない')
 
     ctx.mark('simulate_steps')
-    return ok(f'{steps} ステップで feedback {len(feedback)} 回、'
+    return ok(f'{steps} ステップで feedback {len(feedback)} 件{drop_note}、'
               f'sim 時刻 {before:.3f} -> {after:.3f} ({after - before:.3f}s)、終了後も PAUSED')
 
 

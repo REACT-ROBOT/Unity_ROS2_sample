@@ -331,8 +331,20 @@ class SimHarness(Node):
                 GetAvailableWorlds, profile.get_available_worlds_service),
         }
 
+        # feedback は既定 QoS だと depth 10 の KEEP_LAST なので、20 ステップを
+        # 0.4s で流すと読み側が追いつかず古いサンプルが上書きされて落ちる
+        # (実際 jazzy の servo_demo で 20 件中 18 件しか届かなかった)。
+        # 深めに取って取りこぼしを実質的に無くす。
+        feedback_qos = QoSProfile(
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.VOLATILE,
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=1000,
+        )
         self._action_clients = {
-            'simulate_steps': ActionClient(self, SimulateSteps, profile.simulate_steps_action),
+            'simulate_steps': ActionClient(
+                self, SimulateSteps, profile.simulate_steps_action,
+                feedback_sub_qos_profile=feedback_qos),
         }
 
         # ROS-TCP-Endpoint 側の publisher は既定 QoS (RELIABLE / VOLATILE / depth 10)
