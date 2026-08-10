@@ -35,6 +35,11 @@ joint_reset_tolerance: 0.3  # [rad] リセット後に車輪角が戻るべき�
 pose_reset_tolerance: 0.05  # [m]  リセット後にルートが戻るべき範囲
 base_moves_under_command: true
 
+# C5b (車輪の空転) 用。command_amplitude = 3 rad/s = 0.15 m/s は
+# 50 Hz の物理刻みで滑りが出ない領域。
+wheel_radius: 0.05
+max_wheel_slip: 0.15
+
 spawn_settle_time: 3.0      # LiDAR/カメラの初期化を含むので長めに取る
 reset_settle_time: 1.0
 topic_timeout: 10.0

@@ -14,6 +14,7 @@
   ERROR      シナリオ自体が例外で落ちた
 """
 
+import math
 import time
 import traceback
 
@@ -320,7 +321,63 @@ def c5_base_moves(ctx):
     return ok(f'ルートが {dist:.3f} m 移動した')
 
 
-@scenario('C6', 'C. スポーンと指令', 'PAUSED で sim 時刻が止まり、PLAYING で再開する',
+@scenario('C5b', 'C. スポーンと指令', '車輪が空転せず地面を捉える (移動ロボットのみ)',
+          requires=('command_baseline', 'ground_truth'))
+def c5b_wheel_slip(ctx):
+    """URDF の摩擦が効いているかを、車輪の回転量と実移動量の比で見る。
+
+    摩擦が当たっていなければ車輪だけ回って本体が進まない。ログを読まないと
+    分からない類の不具合なので、外から見える量で押さえる。
+
+    滑り率は速度が上がるほど大きくなる (物理刻みあたりの接触点の移動が
+    大きくなり、接触が保てなくなるため)。ここでは常用域の速度で測る。
+    profile の command_amplitude をそのまま使うので、機体ごとの妥当な速度は
+    プロファイル側の設定に従う。
+    """
+    if not ctx.p.base_moves_under_command:
+        return skip('このプロファイルは固定台ロボットなので車輪の空転は測れない')
+    if not ctx.p.wheel_radius:
+        return skip('profile に wheel_radius が無いので滑り率を計算できない')
+
+    joints = ctx.h.target_joints()
+    if not joints:
+        return skip('指令対象の関節が取れなかった')
+
+    before_joints = ctx.h.joint_map(ctx.p.topic_timeout)
+    before_pose = ctx.h.base_pose(ctx.p.topic_timeout)
+    if before_joints is None or before_pose is None:
+        return skip('joint_states / ground_truth が来ない')
+
+    ctx.h.send_command(joints, [ctx.p.command_amplitude] * len(joints), ctx.p.command_duration)
+
+    after_joints = ctx.h.joint_map(ctx.p.topic_timeout)
+    after_pose = ctx.h.base_pose(ctx.p.topic_timeout)
+    if after_joints is None or after_pose is None:
+        return skip('指令後の joint_states / ground_truth が来ない')
+
+    turned = [after_joints[j][0] - before_joints[j][0] for j in joints if j in before_joints]
+    if not turned:
+        return skip('車輪の回転量を取れなかった')
+    mean_turn = sum(turned) / len(turned)
+    expected = abs(mean_turn) * ctx.p.wheel_radius
+    travelled = math.hypot(after_pose[0] - before_pose[0], after_pose[1] - before_pose[1])
+
+    if expected < ctx.p.motion_threshold:
+        return skip(f'車輪がほとんど回っていない ({mean_turn:+.2f} rad)')
+
+    slip = 1.0 - travelled / expected
+    if slip > ctx.p.max_wheel_slip:
+        return fail(
+            f'滑り率 {slip * 100:.1f} % (車輪 {mean_turn:+.2f} rad = {expected:.3f} m 相当に対し '
+            f'実移動 {travelled:.3f} m)。上限は {ctx.p.max_wheel_slip * 100:.0f} %。'
+            'URDF の collision_material が当たっていないか、指令速度に対して '
+            '物理刻みが粗すぎる可能性がある')
+
+    return ok(f'滑り率 {slip * 100:.1f} % '
+              f'(車輪 {expected:.3f} m 相当に対し実移動 {travelled:.3f} m)')
+
+
+@scenario('C6', 'C. スポーンと指令','PAUSED で sim 時刻が止まり、PLAYING で再開する',
           requires=('spawned',))
 def c6_pause_resume(ctx):
     ctx.h.play()

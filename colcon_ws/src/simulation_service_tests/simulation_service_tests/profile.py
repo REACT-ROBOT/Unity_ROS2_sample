@@ -82,6 +82,9 @@ class Profile:
         self.joint_reset_tolerance = float(d.get('joint_reset_tolerance', 0.1))
         self.pose_reset_tolerance = float(d.get('pose_reset_tolerance', 0.05))
         self.base_moves_under_command = bool(d.get('base_moves_under_command', False))
+        # 車輪の空転を測るための設定 (C5b)。wheel_radius が無ければその検証は行わない。
+        self.wheel_radius = float(d.get('wheel_radius', 0.0))
+        self.max_wheel_slip = float(d.get('max_wheel_slip', 0.15))
 
         # --- 待ち時間 -------------------------------------------------------
         self.spawn_settle_time = float(d.get('spawn_settle_time', 2.0))
