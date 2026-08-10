@@ -15,6 +15,13 @@
 `./build-dokcer-image.bash humble` と指定すれば Humble で動きます。`humble` ブランチは
 Humble 固有の修正が要るときに使います。
 
+> **`humble` ブランチの適合性テストは当時のままです。** `main` で後から足した検証
+> (`WORLD_TAGS` 以降の H 群後半、I 群、G6 / F3 / H2b) は入っていません。既存の検証は
+> 機能申告で分岐しているので、新しい機能を持つシミュレータに対しても落ちません。
+> 揃えたい場合は `main` から cherry-pick してください。この扱いは
+> [シミュレータ側の Known-Limitations-ja.md](https://github.com/hijimasa/Unity_ROS2_Robot_Simulator/blob/main/docs/Known-Limitations-ja.md)
+> にも保留項目として記載しています。
+
 ## 前提条件
 - Unity 2022.3 LTS以上
 - ROS 2 Jazzy (Ubuntu 24.04) または Humble (Ubuntu 22.04)

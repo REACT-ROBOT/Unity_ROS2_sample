@@ -15,6 +15,13 @@ The scripts read `${ROS_DISTRO}` on either branch, so `main` still runs on Humbl
 pass `./build-dokcer-image.bash humble`. The `humble` branch is for changes that Humble
 needs and Jazzy does not.
 
+> **The conformance suite on `humble` is frozen where it was.** Checks added to `main`
+> afterwards — the later H scenarios from `WORLD_TAGS` onward, the I group, and G6 / F3 /
+> H2b — are not on it. The checks that are there gate on the advertised features, so they do
+> not fail against a simulator that has the newer ones. Cherry-pick from `main` if you want
+> them aligned. This is also recorded as deferred work in the simulator's
+> [Known-Limitations.md](https://github.com/hijimasa/Unity_ROS2_Robot_Simulator/blob/main/docs/Known-Limitations.md).
+
 ## Prerequisites
 - Unity 2022.3 LTS or higher
 - ROS 2 Jazzy (Ubuntu 24.04) or Humble (Ubuntu 22.04)
