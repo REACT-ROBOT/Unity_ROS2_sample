@@ -25,6 +25,7 @@ from simulation_interfaces.msg import Bounds, EntityCategory, Resource, Simulato
 
 from .sim_harness import (
     ALREADY_IN_TARGET_STATE,
+    STATE_TRANSITION_ERROR,
     DEFAULT_SOURCES_FAILED,
     ENTITIES_SPAWN_FAILED,
     FEATURE_SERVICE_MAP,
@@ -734,6 +735,74 @@ def f2_reset_empty_scene(ctx):
     return ok('空シーンでも正常に応答する')
 
 
+@scenario('F3', 'F. 仕様適合', '状態遷移が sim 時刻に実際に反映される', requires=('services',))
+def f3_transitions_take_effect(ctx):
+    """「OK と答えたのに何も変わっていない」を検出する。
+
+    get_simulation_state を読むだけだと、変数を書き換えただけの実装でも通る。
+    PAUSED で sim 時刻が止まり PLAYING で進むことまで見て、遷移が実体まで
+    届いていることを確かめる。届いていなければ SetSimulationState.srv の
+    STATE_TRANSITION_ERROR(102) を返すべき場面なので、102 が返らないことと
+    実際に効いていることをまとめて判定する。
+    """
+    unmet = need_services(ctx, 'get_entity_state')
+    if unmet:
+        return unmet
+    entity = ensure_entity(ctx)
+    if entity is None:
+        return skip('sim 時刻を読むためのエンティティを用意できなかった')
+
+    def sim_time():
+        res = ctx.h.get_entity_state(entity)
+        if res.result.result != RESULT_OK:
+            return None
+        stamp = res.state.header.stamp
+        return stamp.sec + stamp.nanosec * 1e-9
+
+    def transition(target, label):
+        res = ctx.h.set_state(target)
+        code = res.result.result
+        if code == STATE_TRANSITION_ERROR:
+            return f'{label} が STATE_TRANSITION_ERROR(102): {res.result.error_message}'
+        if code not in (RESULT_OK, ALREADY_IN_TARGET_STATE):
+            return f'{label} が {result_name(code)}: {res.result.error_message}'
+        state = ctx.h.current_state()
+        if state != target:
+            return f'{label} は成功を返したのに状態が {state_name(state)} のまま'
+        return None
+
+    error = transition(SimulationState.STATE_PAUSED, 'PAUSED への遷移')
+    if error:
+        return fail(error)
+
+    paused_before = sim_time()
+    time.sleep(1.0)
+    paused_after = sim_time()
+    if paused_before is None or paused_after is None:
+        return skip('sim 時刻を取得できなかった')
+    paused_delta = abs(paused_after - paused_before)
+    if paused_delta > 1e-3:
+        return fail(f'PAUSED なのに sim 時刻が {paused_before:.3f} -> {paused_after:.3f} と'
+                    f'進んだ (差 {paused_delta:.3f}s)。状態は変わったが実体に届いていない')
+
+    error = transition(SimulationState.STATE_PLAYING, 'PLAYING への遷移')
+    if error:
+        return fail(error)
+
+    playing_before = sim_time()
+    time.sleep(1.0)
+    playing_after = sim_time()
+    if playing_before is None or playing_after is None:
+        return skip('sim 時刻を取得できなかった')
+    advanced = playing_after - playing_before
+    if advanced < 0.3:
+        return fail(f'PLAYING なのに sim 時刻が {advanced:.3f}s しか進んでいない '
+                    f'({playing_before:.3f} -> {playing_after:.3f})')
+
+    return ok(f'PAUSED では止まり (差 {paused_delta:.4f}s)、'
+              f'PLAYING では {advanced:.3f}s 進む。どちらも 102 を返さない')
+
+
 # ======================================================================
 # G. simulation_interfaces 2.x の新インターフェース
 # ======================================================================
@@ -1119,6 +1188,73 @@ def h2_set_entity_state(ctx):
               '未知の名前は NOT_FOUND(2)')
 
 
+@scenario('H2b', 'H. エンティティ操作', 'get_entity_state の加速度が重力を捉える',
+          requires=('entity_services',))
+def h2b_entity_acceleration(ctx):
+    """EntityState.acceleration が実際の運動を反映しているか。
+
+    自由落下させれば答えが分かっている (重力加速度) ので、それと突き合わせる。
+    落下中に読むのは時間との勝負になるため、一時停止してから step_simulation で
+    決まった数だけ進める。ステップ実行が無い場合は、静止時にゼロ付近であることの
+    確認だけに留める。
+    """
+    unmet = need_services(ctx, 'get_entity_state', 'set_entity_state')
+    if unmet:
+        return unmet
+
+    name = ctx.entity_name
+
+    # まず静止させて、加速度が暴れていないことを見る
+    ctx.h.pause()
+    time.sleep(0.3)
+
+    features = ctx.features or set(ctx.h.simulator_features().features.features)
+    if SimulatorFeatures.STEP_SIMULATION_SINGLE not in features:
+        state = ctx.h.get_entity_state(name)
+        acc = state.state.acceleration.linear
+        return ok(f'ステップ実行が無いので静止時のみ確認 '
+                  f'({acc.x:+.2f}, {acc.y:+.2f}, {acc.z:+.2f})')
+
+    if not ctx.p.base_moves_under_command:
+        # 固定台ロボットはベースリンクが immovable なので、空中へ置いても落ちない。
+        # 加速度がゼロであること自体が正しい挙動なので、自由落下では測れない。
+        state = ctx.h.get_entity_state(name)
+        acc = state.state.acceleration.linear
+        if max(abs(acc.x), abs(acc.y), abs(acc.z)) > 1.0:
+            return fail(f'固定台なのに加速度が出ている '
+                        f'({acc.x:+.2f}, {acc.y:+.2f}, {acc.z:+.2f})')
+        return skip('固定台ロボットはベースが動かないので自由落下で測れない '
+                    '(静止時にゼロであることは確認)')
+
+    # 空中へ置き直してから決まった数だけ進める。落下中なので加速度は重力に一致する。
+    res = ctx.h.set_entity_state(name, pose=(0.0, 0.0, 5.0, 0.0, 0.0, 0.0),
+                                 twist=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
+    if res.result.result != RESULT_OK:
+        return fail(f'空中への移動が {entity_result_name(res.result.result)}')
+
+    stepped = ctx.h.step(10, timeout=max(ctx.p.service_timeout, 30.0))
+    if stepped.result.result != RESULT_OK:
+        return fail(f'step_simulation が {result_name(stepped.result.result)}')
+
+    state = ctx.h.get_entity_state(name)
+    if state.result.result != RESULT_OK:
+        return fail(f'get_entity_state が {result_name(state.result.result)}')
+
+    acc = state.state.acceleration.linear
+    vel = state.state.twist.linear
+    # 落下中なら z 方向へ重力ぶんの加速度が出ているはず。接触や関節の影響で
+    # ぴったりにはならないので幅を持たせる。
+    if not (-15.0 < acc.z < -4.0):
+        return fail(
+            f'自由落下中の加速度 z が {acc.z:+.2f} m/s^2。重力 (約 -9.8) を'
+            f'捉えられていない (速度 z={vel.z:+.2f})。'
+            'acceleration が常にゼロのままになっていないか確認すること')
+    if vel.z >= 0.0:
+        return fail(f'落下しているはずなのに速度 z が {vel.z:+.2f}')
+
+    return ok(f'自由落下中の加速度 z={acc.z:+.2f} m/s^2 (速度 z={vel.z:+.2f} m/s)')
+
+
 @scenario('H3', 'H. エンティティ操作', 'entity_info を書き戻せてタグで絞り込める',
           requires=('entity_services',))
 def h3_entity_info(ctx):
@@ -1372,6 +1508,14 @@ def h8_world_lifecycle(ctx):
                     '起動直後は何らかのワールドが載っているはず')
     started_with = current.world.name
 
+    # 起動時のワールドは指し直せる形で返ってくること。ここが両方空だと、
+    # 一度 unload したら二度と戻せない。
+    startup_resource = current.world.world_resource
+    if not startup_resource.uri and not startup_resource.resource_string:
+        return fail(
+            f'起動時のワールド {started_with} の world_resource が uri も '
+            'resource_string も空。これでは unload_world したあと戻せない')
+
     listed = ctx.h.get_available_worlds()
     if listed.result.result not in (RESULT_OK, DEFAULT_SOURCES_FAILED):
         return fail(f'get_available_worlds が {world_result_name(listed.result.result)}')
@@ -1405,16 +1549,20 @@ def h8_world_lifecycle(ctx):
         return fail('ワールドが無いのに PLAYING へ遷移できた。'
                     'STATE_NO_WORLD は「開始も停止も一時停止もできない」状態')
 
-    # 読み込み直すと停止状態で戻ってくる
+    # 起動時のワールドへ戻せること。get_current_world が返した Resource を
+    # そのまま load_world へ渡すだけで戻れるのが本来の姿。
     restored = ctx.h.load_world(
-        resource_string='{"objects":[{"type":"Cube","position":[0,0.5,0],'
-                        '"rotationEuler":[0,0,0],"scale":[1,1,1],'
-                        '"meshPath":"","isActive":true}]}',
+        uri=startup_resource.uri,
+        resource_string=startup_resource.resource_string,
         timeout=max(ctx.p.service_timeout, 40.0))
     if restored.result.result != RESULT_OK:
-        return fail(f'resource_string からの load_world が '
+        return fail(f'起動時のワールドへの復帰が '
                     f'{world_result_name(restored.result.result)}: '
                     f'{restored.result.error_message}')
+    back = ctx.h.get_current_world()
+    if back.result.result != RESULT_OK or back.world.name != started_with:
+        return fail(f'戻したのに get_current_world が {back.world.name} '
+                    f'({world_result_name(back.result.result)})。期待は {started_with}')
     state = ctx.h.current_state()
     if state != SimulationState.STATE_STOPPED:
         return fail(f'load_world 後の状態が {state_name(state)}。'
@@ -1439,7 +1587,8 @@ def h8_world_lifecycle(ctx):
             from_file = f' / 一覧の {candidate.name} を uri で読み込み'
 
     return ok(f'起動時={started_with} / 一覧 {len(listed.worlds)} 件 / '
-              f'不正な world で壊れない / 降ろすと NO_WORLD / 読み直すと STOPPED{from_file}')
+              f'不正な world で壊れない / 降ろすと NO_WORLD / '
+              f'起動時のワールドへ戻せる{from_file}')
 
 
 @scenario('H9', 'H. world', 'world をタグで絞り込める (WORLD_TAGS)', requires=('services',))
