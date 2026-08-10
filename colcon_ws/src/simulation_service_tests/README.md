@@ -12,7 +12,7 @@ Unity_ROS2_Robot_Simulator が `simulation_interfaces` (2.1.0) のサービス�
 |----|------|
 | A1–A3 | 中核 7 サービスの疎通、起動直後の状態、`Result` コードの規約適合 |
 | B1–B3 | 状態遷移 (start / 同一状態 / 不正値の拒否) |
-| C1–C6 | スポーン、基準状態の記録、ground_truth、**指令が効くことの基準取り**、pause/resume |
+| C1–C6 | スポーン、基準状態の記録、ground_truth、**指令が効くことの基準取り**、**車輪の空転 (C5b)**、pause/resume |
 | D1–D10 | **reset_simulation の全スコープ**。エンティティ生存、関節・姿勢の復元、リセット後の指令受付、サービス生存、デスポーン、再スポーン、時刻リセット、反復安定性 |
 | E1–E2 | `STATE_STOPPED` でのデスポーンと、その後の再スポーン |
 | F1–F3 | `step_simulation` の進み量 (`n` と `2n` の比)、空シーンへのリセット、**状態遷移が sim 時刻に届いていること** |
