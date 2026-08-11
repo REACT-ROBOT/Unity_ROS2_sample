@@ -22,6 +22,7 @@ PROFILE="diffbot"
 OUT_DIR="/tmp/service_conformance"
 KEEP=0
 START_SIM=1
+HEADLESS=0
 EXTRA=()
 
 while [[ $# -gt 0 ]]; do
@@ -31,6 +32,7 @@ while [[ $# -gt 0 ]]; do
     --out)     OUT_DIR="$2"; shift 2 ;;
     --keep)    KEEP=1; shift ;;
     --no-sim)  START_SIM=0; shift ;;
+    --headless) HEADLESS=1; shift ;;
     -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
     *)         EXTRA+=("$1"); shift ;;
   esac
@@ -164,10 +166,18 @@ EOF
   export SIMULATION_RESOURCES_CONFIG="${RESOURCES_CONFIG}"
   log "リソース設定を生成: ${RESOURCES_CONFIG}"
 
-  log "シミュレータを起動 (${SIM_DIR})"
-  export DISPLAY="${DISPLAY:-:1}"
-  export XAUTHORITY="${XAUTHORITY:-/.Xauthority}"
-  ( cd "${SIM_DIR}" && nohup ./Unity_ROS2_Robot_Simulator.x86_64 < /dev/null > "${SIM_LOG}" 2>&1 & )
+  SIM_ARGS=()
+  if [[ "${HEADLESS}" == 1 ]]; then
+    # ディスプレイ無しで実行 (CI 用)。描画依存のカメラセンサは
+    # シミュレータ側でスキップされる (深度カメラ・LiDAR は動く)。
+    SIM_ARGS=(-batchmode -nographics)
+    log "シミュレータを起動 (${SIM_DIR}, headless)"
+  else
+    export DISPLAY="${DISPLAY:-:1}"
+    export XAUTHORITY="${XAUTHORITY:-/.Xauthority}"
+    log "シミュレータを起動 (${SIM_DIR})"
+  fi
+  ( cd "${SIM_DIR}" && nohup ./Unity_ROS2_Robot_Simulator.x86_64 "${SIM_ARGS[@]}" < /dev/null > "${SIM_LOG}" 2>&1 & )
   sleep 14
 else
   log "--no-sim: 既に起動しているスタックへ接続する"
