@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>sim_test_utils</name>
+  <version>0.1.0</version>
+  <description>
+    pytest utilities for writing test scenarios against
+    Unity_ROS2_Robot_Simulator: a service client wrapper, fixtures with
+    automatic cleanup, and assertion helpers. See examples/ for usage.
+  </description>
+  <maintainer email="hijimasa@gmail.com">Masaaki Hijikata</maintainer>
+  <license>Apache License 2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>simulation_interfaces</exec_depend>
+  <exec_depend>simulation_extra_interfaces</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
