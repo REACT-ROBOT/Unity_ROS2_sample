@@ -15,7 +15,7 @@ from simulation_interfaces.srv import (
     DeleteEntity, GetEntities, GetEntityState, SetEntityState,
     LoadWorld, UnloadWorld, ResetSimulation, SetSimulationState,
     SpawnEntity, StepSimulation)
-from simulation_extra_interfaces.srv import ApplyLinkWrench
+from simulation_extra_interfaces.srv import ApplyLinkWrench, GetContactEvents
 
 
 class ServiceError(RuntimeError):
@@ -185,6 +185,18 @@ class SimClient:
         self._check("load_world", res.result)
         return res.world
 
+    def load_world_string(self, content: str):
+        """シーン JSON または SDF (< で始まる) の文字列からワールドを載せ替える。"""
+        req = LoadWorld.Request()
+        req.world_resource.resource_string = content
+        res = self.call(LoadWorld, "/load_world", req, timeout=60.0)
+        self._check("load_world", res.result)
+        return res.world
+
+    def restore_empty_world(self):
+        """景観を空に戻す (組み込みの床とライトは常に残る)。"""
+        self.load_world_string('{"name":"empty","objects":[]}')
+
     def unload_world(self):
         res = self.call(UnloadWorld, "/unload_world", UnloadWorld.Request())
         self._check("unload_world", res.result)
@@ -209,6 +221,31 @@ class SimClient:
         if res.result != ApplyLinkWrench.Response.RESULT_OK:
             raise ServiceError(
                 f"apply_link_wrench failed: result={res.result} '{res.error_message}'")
+
+    # ------------------------------------------------------------------
+    # 衝突記録
+    # ------------------------------------------------------------------
+
+    def contacts(self, entity: str = "", clear: bool = False):
+        """(entity, link, other) ごとの衝突記録リストを返す。"""
+        req = GetContactEvents.Request()
+        req.entity = entity
+        req.clear = clear
+        res = self.call(GetContactEvents, "/get_contact_events", req)
+        if res.result != GetContactEvents.Response.RESULT_OK:
+            raise ServiceError(
+                f"get_contact_events failed: result={res.result} '{res.error_message}'")
+        return list(res.contacts)
+
+    def collided(self, entity: str, ignore=("Plane",)):
+        """entity が ignore 以外の何かとぶつかった記録があるか。
+
+        ignore の既定 "Plane" は組み込みの床。車輪やベースの接地は正常なので
+        除外し、それ以外との接触を「衝突」と数える。
+        """
+        return any(
+            not any(pattern in record.other for pattern in ignore)
+            for record in self.contacts(entity))
 
     # ------------------------------------------------------------------
     # 待ち合わせ
