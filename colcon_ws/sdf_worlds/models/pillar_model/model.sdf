@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+  <model name="pillar_model">
+    <static>true</static>
+    <link name="link">
+      <pose>0 0 0.75 0 0 0</pose>
+      <collision name="collision">
+        <geometry>
+          <cylinder><radius>0.3</radius><length>1.5</length></cylinder>
+        </geometry>
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <cylinder><radius>0.3</radius><length>1.5</length></cylinder>
+        </geometry>
+        <material>
+          <diffuse>0.2 0.4 0.8 1</diffuse>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

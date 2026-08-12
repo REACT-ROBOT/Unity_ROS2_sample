@@ -1,0 +1,23 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+  <world name="test_mesh">
+    <!-- 相対URIのSTLメッシュ壁: 頂点は x[-0.1,0.1] y[-2,2] z[0,1]、モデルは x=4 -->
+    <model name="mesh_wall">
+      <static>true</static>
+      <pose>4 0 0 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>meshes/wall.stl</uri></mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+    <!-- model:// include (world隣の models/ から解決) -->
+    <include>
+      <uri>model://pillar_model</uri>
+      <name>pillar1</name>
+      <pose>0 -2 0 0 0 0</pose>
+    </include>
+  </world>
+</sdf>

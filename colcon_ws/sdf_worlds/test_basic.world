@@ -1,0 +1,96 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+  <world name="test_basic">
+    <!-- Gazebo標準のground_planeと同型: static + plane geometry -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 原点から x=3 に立つ箱 (壁): pose はモデル直下 -->
+    <model name="wall">
+      <static>true</static>
+      <pose>3 0 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.2 4 2</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.2 4 2</size></box>
+          </geometry>
+          <material>
+            <ambient>0.6 0.3 0.1 1</ambient>
+            <diffuse>0.6 0.3 0.1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- link 側にも pose があるケース + 円柱 -->
+    <model name="pillar">
+      <static>true</static>
+      <pose>0 -2 0 0 0 0</pose>
+      <link name="link">
+        <pose>0 0 0.75 0 0 0</pose>
+        <collision name="collision">
+          <geometry>
+            <cylinder><radius>0.3</radius><length>1.5</length></cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder><radius>0.3</radius><length>1.5</length></cylinder>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <!-- yaw 45度回転した球 (回転の座標変換確認) -->
+    <model name="ball">
+      <static>true</static>
+      <pose>-2 2 0.5 0 0 0.7853981633974483</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <sphere><radius>0.5</radius></sphere>
+          </geometry>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <sphere><radius>0.5</radius></sphere>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+
+    <light name="sun" type="directional">
+      <pose>0 0 10 0 0 0</pose>
+      <direction>-0.5 0.1 -0.9</direction>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+    </light>
+  </world>
+</sdf>

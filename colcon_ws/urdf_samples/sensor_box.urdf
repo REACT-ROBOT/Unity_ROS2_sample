@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!-- GUI スポーンボタンの動作確認用サンプル。
+     1 kg の箱に接触センサと GNSS を載せただけの最小構成。
+     スポーン後に再生すると
+       /sensor_box/base_link/contact        (std_msgs/Bool, 着地で true)
+       /sensor_box/base_link/contact/wrench (geometry_msgs/WrenchStamped, 約 9.8 N)
+       /sensor_box/base_link/fix            (sensor_msgs/NavSatFix, 東京駅付近)
+     が流れる。 -->
+<robot name="sensor_box">
+  <link name="base_link">
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+    <visual>
+      <geometry><box size="0.2 0.2 0.2"/></geometry>
+      <material name="orange"><color rgba="1.0 0.5 0.1 1.0"/></material>
+    </visual>
+    <collision>
+      <geometry><box size="0.2 0.2 0.2"/></geometry>
+    </collision>
+  </link>
+  <simulation>
+    <sensor type="contact" name="base_link">
+      <update_rate>20</update_rate>
+    </sensor>
+    <sensor type="gnss" name="base_link">
+      <update_rate>10</update_rate>
+      <origin_latitude>35.681236</origin_latitude>
+      <origin_longitude>139.767125</origin_longitude>
+      <origin_altitude>0.0</origin_altitude>
+    </sensor>
+  </simulation>
+</robot>
