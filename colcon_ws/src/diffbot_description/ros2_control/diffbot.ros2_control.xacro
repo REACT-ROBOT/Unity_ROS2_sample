@@ -15,6 +15,14 @@
           <param name="joint_commands_topic">/${name}/joint_command</param>
           <param name="joint_states_topic">/${name}/joint_states</param>
           <param name="sum_wrapped_joint_states">true</param>
+          <!--
+            Unity_ROS2_Robot_Simulator は ground_truth の publish 先もここから
+            読む。この param が無いと ground_truth publisher 自体が付かない
+            (センサを宣言していない実体に既定名の publisher が付いて、複数
+            スポーン時に同じトピックへ殺到するのを避けるため)。
+            (topic_based_ros2_control 側は知らない param なので無視される)
+          -->
+          <param name="ground_truth_topic">/${name}/ground_truth</param>
         </xacro:if>
       </hardware>
       <joint name="${prefix}left_wheel_joint">
