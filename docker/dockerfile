@@ -6,6 +6,11 @@ ARG ROS_DISTRO_ARG=jazzy
 ARG UBUNTU_CODENAME=noble
 FROM ros:${ROS_DISTRO_ARG}-ros-base-${UBUNTU_CODENAME}
 
+# Simulator version. Keep in step with the default in
+# colcon_ws/scripts/service_conformance_test.sh, which runs whatever this
+# unpacked.
+ARG SIMULATOR_VERSION=v1.0.5
+
 # Arguments
 ARG USER=initial
 ARG GROUP=initial
@@ -74,11 +79,13 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.s
 # Switch user to ${USER}
 USER ${USER}
 
-# Setup Simulator app
+# Setup Simulator app. The zip unpacks into a directory named after the version,
+# so the tag and the file name come from one place and cannot drift apart.
 RUN cd /home/${USER} && \
-  wget -q https://github.com/REACT-ROBOT/Unity_ROS2_Robot_Simulator/releases/download/v1.0.1/Unity_ROS2_Robot_Simulator_v1.0.0_Linux_amd64.zip && \
-  unzip Unity_ROS2_Robot_Simulator_v1.0.0_Linux_amd64.zip && \
-  rm Unity_ROS2_Robot_Simulator_v1.0.0_Linux_amd64.zip
+  wget -q https://github.com/REACT-ROBOT/Unity_ROS2_Robot_Simulator/releases/download/${SIMULATOR_VERSION}/Unity_ROS2_Robot_Simulator_${SIMULATOR_VERSION}_Linux_amd64.zip && \
+  unzip -q Unity_ROS2_Robot_Simulator_${SIMULATOR_VERSION}_Linux_amd64.zip && \
+  rm Unity_ROS2_Robot_Simulator_${SIMULATOR_VERSION}_Linux_amd64.zip && \
+  chmod +x Unity_ROS2_Robot_Simulator_${SIMULATOR_VERSION}_Linux_amd64/Unity_ROS2_Robot_Simulator.x86_64
 
 # Make SSH available
 EXPOSE 22
