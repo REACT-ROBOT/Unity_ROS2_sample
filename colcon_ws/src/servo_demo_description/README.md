@@ -1,7 +1,7 @@
 # servo_demo_description
 
-Unity_ROS2_Robot_Simulator v0.9.3 のサーボモータモデル
-(Stribeck 摩擦 + バックラッシ) のデモ。
+Unity_ROS2_Robot_Simulator のサーボモータモデル
+(Stribeck 摩擦 + バックラッシ) のデモ。このモデルは v0.9.3 で入った。
 
 固定スタンドに 2 個のサーボ + 振り子アームを並べ、同じ指令を与えて比較する。
 アームは q=0 で真下 (重力平衡) を向き、振り子のように左右へ振れる。

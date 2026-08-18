@@ -2,7 +2,7 @@
 # Demo bring-up + health check, run INSIDE the container.
 # Usage: bringup_test.sh <sim_dir>
 # Prints CLEAN if both demo joints are near zero shortly after startup.
-SIM_DIR=${1:-$HOME/Unity_ROS2_Robot_Simulator_v0.9.3_Linux_amd64}
+SIM_DIR=${1:-$HOME/Unity_ROS2_Robot_Simulator_v1.2.0_Linux_amd64}
 
 # UDP-only DDS (stale /dev/shm/fastrtps_* from killed processes breaks
 # discovery; clean them and avoid creating new ones)
