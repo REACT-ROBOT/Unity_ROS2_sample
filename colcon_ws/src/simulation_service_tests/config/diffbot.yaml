@@ -13,7 +13,7 @@ xacro_mappings:
 # URDF の <ros2_control><hardware> で指定されているトピック名に合わせる
 joint_states_topic: /diffbot/joint_states
 joint_command_topic: /diffbot/joint_command
-ground_truth_topic: /ground_truth
+ground_truth_topic: /diffbot/ground_truth
 
 spawn_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 

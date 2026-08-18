@@ -55,3 +55,7 @@ CATKIN_IGNORE
 
 # Claude Code local settings
 .claude/
+
+# シミュレータのビルド成果物と実行時出力 (検証時にローカル生成)
+colcon_ws/sim_build/
+colcon_ws/output*/

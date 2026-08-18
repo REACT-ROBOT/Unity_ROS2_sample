@@ -13,6 +13,9 @@
              ラップ回転と誤検出して恒久オフセットをラッチし、以後の指令全体が
              ずれてアームがリミットへ誘導される (実測 ~2.1 rad オフセット)。
              この腕は連続回転しないため不要。 -->
+        <!-- ground_truth の publish 先。この param が無いと publisher 自体が
+             付かない (topic_based_ros2_control 側は知らないので無視される)。 -->
+        <param name="ground_truth_topic">/${name}/ground_truth</param>
       </hardware>
 
       <joint name="ideal_joint">

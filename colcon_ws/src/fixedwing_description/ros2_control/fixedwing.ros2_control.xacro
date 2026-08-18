@@ -10,6 +10,9 @@
           <param name="joint_commands_topic">/${name}/joint_command</param>
           <param name="joint_states_topic">/${name}/joint_states</param>
           <param name="sum_wrapped_joint_states">true</param>
+          <!-- ground_truth の publish 先。この param が無いと publisher 自体が
+               付かない (topic_based_ros2_control 側は知らないので無視される)。 -->
+          <param name="ground_truth_topic">/${name}/ground_truth</param>
         </xacro:if>
         <xacro:unless value="${use_sim}">
           <plugin>fake_components/GenericSystem</plugin>

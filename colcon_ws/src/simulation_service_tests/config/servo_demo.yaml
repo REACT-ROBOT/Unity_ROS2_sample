@@ -15,7 +15,7 @@ xacro_mappings:
 
 joint_states_topic: /ServoDemo/joint_states
 joint_command_topic: /ServoDemo/joint_command
-ground_truth_topic: /ground_truth
+ground_truth_topic: /ServoDemo/ground_truth
 
 spawn_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
