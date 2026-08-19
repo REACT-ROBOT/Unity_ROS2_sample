@@ -9,7 +9,7 @@ FROM ros:${ROS_DISTRO_ARG}-ros-base-${UBUNTU_CODENAME}
 # Simulator version. Keep in step with the default in
 # colcon_ws/scripts/service_conformance_test.sh, which runs whatever this
 # unpacked.
-ARG SIMULATOR_VERSION=v1.2.1
+ARG SIMULATOR_VERSION=v1.2.2
 
 # Arguments
 ARG USER=initial
