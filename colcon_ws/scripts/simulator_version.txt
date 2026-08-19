@@ -1,0 +1,13 @@
+# 使用する Unity_ROS2_Robot_Simulator のバージョン。ここが唯一の定義。
+#
+# 参照しているもの:
+#   docker/build-dokcer-image.bash        --build-arg SIMULATOR_VERSION に渡す
+#   scripts/run_simulator.sh              起動する実行ファイルのパス
+#   scripts/bringup_test.sh               SIM_DIR の既定値
+#   scripts/service_conformance_test.sh   SIM_DIR の既定値
+#
+# 以前はこの 4 つに別々に書いてあり、リリースのたびに全部を直す必要があった。
+#
+# 空行と # で始まる行は読み飛ばされる。最初の中身がある行をバージョンとして使う。
+# GitHub Releases のタグと同じ書き方にすること (先頭に v を付ける)。
+v1.2.2

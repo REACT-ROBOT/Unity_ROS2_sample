@@ -5,7 +5,8 @@
 #   ./scripts/service_conformance_test.sh [オプション]
 #
 #     --sim-dir DIR     シミュレータ本体の置き場所
-#                       (既定: $HOME/Unity_ROS2_Robot_Simulator_v1.2.2_Linux_amd64)
+#                       (既定: $HOME/Unity_ROS2_Robot_Simulator_<version>_Linux_amd64、
+#                        version は scripts/simulator_version.txt)
 #     --profile NAME    テスト用ロボット (diffbot | servo_demo, 既定: diffbot)
 #     --out DIR         レポートとログの出力先 (既定: /tmp/service_conformance)
 #     --keep            テスト後もシミュレータを落とさない (手作業で追試したいとき)
@@ -17,7 +18,9 @@
 
 set -u
 
-SIM_DIR="${HOME}/Unity_ROS2_Robot_Simulator_v1.2.2_Linux_amd64"
+# バージョンの定義は simulator_version.txt の 1 か所だけ。
+source "$(dirname "$0")/simulator_version.sh"
+SIM_DIR="${SIM_DIR_DEFAULT}"
 PROFILE="diffbot"
 OUT_DIR="/tmp/service_conformance"
 KEEP=0

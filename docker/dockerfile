@@ -9,7 +9,10 @@ FROM ros:${ROS_DISTRO_ARG}-ros-base-${UBUNTU_CODENAME}
 # Simulator version. Keep in step with the default in
 # colcon_ws/scripts/service_conformance_test.sh, which runs whatever this
 # unpacked.
-ARG SIMULATOR_VERSION=v1.2.2
+# 使うシミュレータのバージョン。定義は colcon_ws/scripts/simulator_version.txt に
+# あり、build-dokcer-image.bash がそれを読んで --build-arg で渡す。
+# 既定値は置かない。ここに書くと定義が 2 か所になり、片方だけ古くなる。
+ARG SIMULATOR_VERSION
 
 # Arguments
 ARG USER=initial
