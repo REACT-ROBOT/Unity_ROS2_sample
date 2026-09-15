@@ -31,6 +31,11 @@ install(DIRECTORY config
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(PROGRAMS scripts/magnetic_line_follower.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME magnetic_line_follower
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
