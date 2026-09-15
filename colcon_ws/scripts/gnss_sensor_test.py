@@ -10,8 +10,13 @@ URDF の <simulation><sensor type="gnss"> で宣言した GNSS センサが、
 
 シナリオ: 測地原点 (東京駅: 35.681236, 139.767125) を指定した箱をワールド
 原点付近にスポーンして再生。ロボットはほぼ原点にいるので、緯度経度は指定した
-原点にほぼ一致し、高度は有限値になるはず。status / covariance も既定値
-(FIX / GPS / 共分散 UNKNOWN) を確認する。
+原点にほぼ一致し、高度は有限値になるはず。status / covariance も確認する。
+
+シミュレータ v1.4.0 で受信機モデルが入り、測位品質が status と covariance に
+出るようになった。この URDF には <sensor type="gnss_sky_view"> が無いので、
+受信機は「空を見ていない = 推測しない」として真値をそのまま RTK 相当の等級で
+報告する。NavSatFix は RTK Fix と Float を区別できない (どちらも GBAS_FIX) ので
+等級は position_covariance に載り、型は DIAGONAL_KNOWN になる。
 
 注意: 測地原点はシーン全体で共有され、最初にスポーンしたロボットの指定が
 優先される。先に別の原点で GNSS ロボットを出したままだとこのテストは
@@ -156,16 +161,21 @@ def main():
             check('frame_id is sensor link', last.header.frame_id == LINK_NAME,
                   f'frame_id = "{last.header.frame_id}"')
 
-            # シリアライザの既定値: STATUS_FIX / SERVICE_GPS / 共分散 UNKNOWN (9 要素の有限値)
-            check('status is STATUS_FIX', last.status.status == NavSatStatus.STATUS_FIX,
+            # 受信機モデルが等級付きの解を出す。sky_view が無いので劣化は無く、
+            # 地上系補強相当 = GBAS_FIX になる。
+            check('status is STATUS_GBAS_FIX', last.status.status == NavSatStatus.STATUS_GBAS_FIX,
                   f'status = {last.status.status}')
             check('service is SERVICE_GPS', last.status.service == NavSatStatus.SERVICE_GPS,
                   f'service = {last.status.service}')
+            # 等級ごとの σ から作るので APPROXIMATED ではなく DIAGONAL_KNOWN。
+            # 対角 (0, 4, 8) だけが正で、残りは 0。
             cov = list(last.position_covariance)
             cov_ok = (len(cov) == 9 and all(math.isfinite(c) for c in cov)
+                      and all(cov[i] > 0.0 for i in (0, 4, 8))
+                      and all(cov[i] == 0.0 for i in (1, 2, 3, 5, 6, 7))
                       and last.position_covariance_type
-                      == NavSatFix.COVARIANCE_TYPE_UNKNOWN)
-            check('covariance sane (9 finite values, type UNKNOWN)', cov_ok,
+                      == NavSatFix.COVARIANCE_TYPE_DIAGONAL_KNOWN)
+            check('covariance is a positive diagonal, type DIAGONAL_KNOWN', cov_ok,
                   f'type = {last.position_covariance_type}, cov[0] = {cov[0] if cov else "-"}')
 
         # 後始末: スポーン物を消し、停止に戻す
