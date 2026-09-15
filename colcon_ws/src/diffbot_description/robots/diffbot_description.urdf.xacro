@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
-  <xacro:macro name="diffbot" params="prefix use_sim:=^|false">
+  <xacro:macro name="diffbot" params="prefix use_sim:=^|false use_magnetic_guide:=^|true use_gnss:=^|true">
 
   <material name="gray">
     <color rgba="0.5 0.5 0.5 0.2"/>
@@ -224,6 +224,42 @@
     </visual>
     -->
   </link>
+
+  <!-- 磁気誘導センサのバー。リンク原点がバー面の中心で、+x 前方 / +y 左 /
+       -z が見ている向き。実機と同じく床から 30 mm の高さに置く
+       (base_link から x=0.12, z=0.03)。collision を付けると自分のレイを
+       遮ってしまうので、ジオメトリは持たせない。 -->
+  <xacro:if value="${use_magnetic_guide}">
+  <joint name="magnetic_guide_joint" type="fixed">
+    <parent link="body_link"/>
+    <child  link="magnetic_guide_link"/>
+    <origin xyz="0.19 0 -0.04" rpy="0 0 0"/>
+  </joint>
+  <link name="magnetic_guide_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.05"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+  </xacro:if>
+
+  <!-- GNSS アンテナ。衛星の見え方はアンテナの高さと位置で決まるので、
+       車体自身の影に入らないようマスト上 (base_link から z=0.35) に置く。 -->
+  <xacro:if value="${use_gnss}">
+  <joint name="gnss_antenna_joint" type="fixed">
+    <parent link="body_link"/>
+    <child  link="gnss_antenna_link"/>
+    <origin xyz="0 0 0.28" rpy="0 0 0"/>
+  </joint>
+  <link name="gnss_antenna_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.05"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+  </xacro:if>
 
   </xacro:macro>
 </robot>

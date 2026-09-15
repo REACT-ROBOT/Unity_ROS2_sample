@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
-  <xacro:macro name="diffbot_simulation" params="prefix">
+  <xacro:macro name="diffbot_simulation" params="prefix use_magnetic_guide:=^|true use_gnss:=^|true">
 
     <!-- =============== Simulation =============== -->
     <simulation>
@@ -64,7 +64,63 @@
         <cameraInfoTopicName>depth_camera_info</cameraInfoTopicName>
         <frameName>depth_camera_link</frameName>
       </sensor>
-      
+      <!-- ============ v1.4.0: 磁気誘導 (ラインセンサ) ============ -->
+      <!-- AGV 用の磁気ラインセンサ (MGS1600 / UDS-1213 相当)。バー幅 160 mm を
+           1 mm ピッチの素子で見て、テープの横位置 [m] (+左) と左右マーカを
+           simulation_extra_interfaces/MagneticGuide で
+           /diffbot/magnetic_guide_link/magnetic_guide に publish する。
+           テープは sim_props_description の magnetic_course を spawn して置く。
+           min/max_height はバー面 (床上 30 mm) からの測定可能距離。 -->
+      <xacro:if value="${use_magnetic_guide}">
+      <sensor name="magnetic_guide_link" type="magnetic_guide">
+        <update_rate>50</update_rate>
+        <width>0.16</width>
+        <pitch>0.001</pitch>
+        <min_height>0.01</min_height>
+        <max_height>0.06</max_height>
+        <fork>nearest</fork>
+        <noise>
+          <stddev>0.0</stddev>
+        </noise>
+      </sensor>
+      </xacro:if>
+
+      <!-- ============ v1.4.0: GNSS (受信機モデル + 空の見え方) ============ -->
+      <!-- gnss_sky_view がアンテナから衛星ごとにレイを打ち、直達 / 反射 (NLOS) /
+           遮蔽を判定する。これ自体は ROS へ publish せず、同じリンクの
+           <sensor type="gnss"> が受信機モデルの入力として読む。gnss_canyon を
+           spawn してビルの谷間に入れると測位品質が落ちる様子が見られる。
+           gnss_sky_view が無いときは受信機は真値をそのまま報告する。
+           stochastic_error を false にすると乱数由来の誤差が消え、幾何が生む
+           誤差だけが残るので、同じ場所では毎回同じ誤差になる。 -->
+      <xacro:if value="${use_gnss}">
+      <sensor name="gnss_antenna_link" type="gnss">
+        <update_rate>5.0</update_rate>
+        <origin_latitude>36.549774</origin_latitude>
+        <origin_longitude>139.928772</origin_longitude>
+        <origin_altitude>100.0</origin_altitude>
+        <reconvergence_sec>8.0</reconvergence_sec>
+        <lock_seconds_for_fix>8.0</lock_seconds_for_fix>
+        <wrong_fix_probability>0.01</wrong_fix_probability>
+        <stochastic_error>true</stochastic_error>
+        <seed>20260914</seed>
+      </sensor>
+
+      <sensor name="gnss_antenna_link" type="gnss_sky_view">
+        <update_rate>5.0</update_rate>
+        <satellite_count>24</satellite_count>
+        <elevation_mask>15.0</elevation_mask>
+        <max_range>500.0</max_range>
+        <seed>1</seed>
+        <!-- 雑草や磁気テープはトリガコライダなので、既定 (false) のままなら衛星を遮らない -->
+        <hit_triggers>false</hit_triggers>
+        <!-- 1 バウンス反射 (NLOS) の探索。spacing を半分にするとレイ数は 4 倍 -->
+        <reflections>true</reflections>
+        <reflection_spacing>2.5</reflection_spacing>
+        <reflection_loss_db>-13.0</reflection_loss_db>
+      </sensor>
+      </xacro:if>
+
     </simulation>
 
   </xacro:macro>
