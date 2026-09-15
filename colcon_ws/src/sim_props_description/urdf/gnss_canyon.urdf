@@ -6,15 +6,19 @@
      (<hit_triggers>true</hit_triggers> で拾わせることはできる)。ここはビルなので
      sensor_only は付けず、実体のある壁にしてある。
 
-     街路は幅 8 m・壁高 10 m で、x=4 から x=26 まで。
-     間に 2 m の横道が空いているので、そこを通るたびに空が開けて測位が
-     一度回復する。谷が深いほど劣化は強くなる: 壁を高く / 街路を狭くすれば
-     RTK Fix は落ちやすく、反射 (NLOS) の余分な行程も伸びる。
+     街路は幅 4 m・壁高 12 m で、x=4 から x=26 まで。
+     間に 2 m の横道が空いているので、そこを通るたびに空が開けて測位が一度回復する。
+
+     街路軸 (+x) 方向の空は塞げないので、どれだけ深くしても衛星が全て消えることは
+     ない。幅 8 m・高さ 10 m では使用衛星が 20 -> 11 に減る程度で RTK Fix は
+     保たれた。等級まで落とすにはこの幅 4 m・高さ 12 m くらいが要る。逆に劣化を
+     弱めたいときは街路を広げる。
 
      原点から +x へ走ると「開空 -> 谷間 -> 横道 -> 谷間」と条件が変わるので、
      /diffbot/gnss_antenna_link/extended_fix の status (RTK Fix 19 / Float 20) と
-     衛星数の変化が追える。GUI のエンティティパネルの `<link> gnss rays` を
-     ONにすると、直達 (緑) と反射 (太いアンバー) の経路が描かれる。 -->
+     使用衛星数・HDOP の変化が追える。GUI のエンティティパネルの
+     `<link> gnss rays` を ON にすると、直達 (緑) と反射 (太いアンバー) の経路が
+     描かれる。 -->
 <robot name="gnss_canyon">
   <material name="concrete">
     <color rgba="0.62 0.62 0.6 1.0"/>
@@ -22,18 +26,18 @@
 
   <link name="world"/>
   <link name="buildings_link">
-    <visual><origin xyz="7.0 4.0 5.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 10.0"/></geometry><material name="concrete"/></visual>
-    <collision><origin xyz="7.0 4.0 5.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 10.0"/></geometry></collision>
-    <visual><origin xyz="7.0 -4.0 5.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 10.0"/></geometry><material name="concrete"/></visual>
-    <collision><origin xyz="7.0 -4.0 5.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 10.0"/></geometry></collision>
-    <visual><origin xyz="15.0 4.0 5.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 10.0"/></geometry><material name="concrete"/></visual>
-    <collision><origin xyz="15.0 4.0 5.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 10.0"/></geometry></collision>
-    <visual><origin xyz="15.0 -4.0 5.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 10.0"/></geometry><material name="concrete"/></visual>
-    <collision><origin xyz="15.0 -4.0 5.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 10.0"/></geometry></collision>
-    <visual><origin xyz="23.0 4.0 5.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 10.0"/></geometry><material name="concrete"/></visual>
-    <collision><origin xyz="23.0 4.0 5.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 10.0"/></geometry></collision>
-    <visual><origin xyz="23.0 -4.0 5.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 10.0"/></geometry><material name="concrete"/></visual>
-    <collision><origin xyz="23.0 -4.0 5.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 10.0"/></geometry></collision>
+    <visual><origin xyz="7.0 2.0 6.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 12.0"/></geometry><material name="concrete"/></visual>
+    <collision><origin xyz="7.0 2.0 6.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 12.0"/></geometry></collision>
+    <visual><origin xyz="7.0 -2.0 6.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 12.0"/></geometry><material name="concrete"/></visual>
+    <collision><origin xyz="7.0 -2.0 6.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 12.0"/></geometry></collision>
+    <visual><origin xyz="15.0 2.0 6.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 12.0"/></geometry><material name="concrete"/></visual>
+    <collision><origin xyz="15.0 2.0 6.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 12.0"/></geometry></collision>
+    <visual><origin xyz="15.0 -2.0 6.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 12.0"/></geometry><material name="concrete"/></visual>
+    <collision><origin xyz="15.0 -2.0 6.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 12.0"/></geometry></collision>
+    <visual><origin xyz="23.0 2.0 6.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 12.0"/></geometry><material name="concrete"/></visual>
+    <collision><origin xyz="23.0 2.0 6.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 12.0"/></geometry></collision>
+    <visual><origin xyz="23.0 -2.0 6.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 12.0"/></geometry><material name="concrete"/></visual>
+    <collision><origin xyz="23.0 -2.0 6.0" rpy="0 0 0"/><geometry><box size="6.0 0.6 12.0"/></geometry></collision>
   </link>
   <joint name="buildings_fix" type="fixed">
     <parent link="world"/>

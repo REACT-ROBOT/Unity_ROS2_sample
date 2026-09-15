@@ -23,9 +23,14 @@ Humble 固有の修正が要るときに使います。
 > にも保留項目として記載しています。
 
 ## 前提条件
-- Unity 2022.3 LTS以上
 - ROS 2 Jazzy (Ubuntu 24.04) または Humble (Ubuntu 22.04)
 - Docker (どちらの distro もコンテナ内で完結します)
+
+Unity 自体は不要です。イメージがシミュレータのリリース済み Linux ビルドを
+ダウンロードし、コンテナ内で実行します。Unity が要るのはシミュレータを
+ソースからビルドするときだけで、それは
+[シミュレータ側のリポジトリ](https://github.com/REACT-ROBOT/Unity_ROS2_Robot_Simulator)
+の話になります。
 
 ## インストール方法
 1. このリポジトリをサブモジュールごとクローンします：
@@ -165,7 +170,9 @@ ros2 topic echo /diffbot/magnetic_guide_link/magnetic_guide
 ```
 
 `position` はテープの横位置 [m] で、ロボットから見て左が正です。`track_positions` には
-160 mm のバーの下にあるトラックが全て並ぶので、分岐では 2 本見えます。
+160 mm のバーの下にあるトラックが全て並ぶので、分岐では 2 本見えます。追従ノードの
+`gain` / `linear_speed` / `max_angular` は ROS パラメータです。既定値でコースは回れますが、
+詰めた値ではなく出発点として置いてあります。
 
 テープは薄い box に `<collision_material><magnetic_tape polarity="track|marker"/>` を付けた
 もので、`magnetic_tape` は `sensor_only` を含意するため踏んで走れます。URDF は
@@ -179,8 +186,20 @@ ros2 topic echo /diffbot/magnetic_guide_link/magnetic_guide
 ros2 launch sim_props_description spawn_prop.launch.py prop:=gnss_canyon
 ```
 
-x=4 から x=26 まで、幅 8 m の街路に沿ってビルが建ちます (途中に 2 m の横道が 2 本)。
-そのまま走ると、アンテナは「開空 → 谷間 → 横道 → 谷間 → 開空」と条件が変わります。
+x=4 から x=26 まで、幅 4 m の街路に沿ってビルが建ちます (途中に 2 m の横道が 2 本)。
+そのまま走ると、アンテナは「開空 → 谷間 → 横道 → 谷間」と条件が変わり、等級が順に
+落ちていく様子がそのまま出ます。0.3 m/s で直進しながら測ったもの:
+
+| x [m] | 等級 | 使用衛星 | HDOP | σ |
+|---|---|---|---|---|
+| 2.4 (開空) | RTK Fix | 19 | 0.63 | 2 cm |
+| 7.3 | RTK Fix | 5 | 2.0 | 2 cm |
+| 9.9 | RTK Float | 8 | 1.0 | 30 cm |
+| 14.8 | 単独測位 | 5 | 15.7 | 150 cm |
+| 19.8 (横道の脇) | RTK Float | 10 | 0.88 | 30 cm |
+
+街路軸の方向の空は塞げないので、どれだけ深くしても衛星が全て消えることはありません。
+劣化を弱めたいときは街路を広げ、強めたいときは狭めます。
 
 ```
 ros2 topic echo /diffbot/gnss_antenna_link/extended_fix --field status

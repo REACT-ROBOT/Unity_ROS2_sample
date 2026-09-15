@@ -23,9 +23,12 @@ needs and Jazzy does not.
 > [Known-Limitations.md](https://github.com/hijimasa/Unity_ROS2_Robot_Simulator/blob/main/docs/Known-Limitations.md).
 
 ## Prerequisites
-- Unity 2022.3 LTS or higher
 - ROS 2 Jazzy (Ubuntu 24.04) or Humble (Ubuntu 22.04)
 - Docker (either distro runs entirely inside the container)
+
+Unity itself is not needed: the image downloads the simulator's released Linux build and
+runs it in the container. Unity is only required to build the simulator from source, which
+happens in [its own repository](https://github.com/REACT-ROBOT/Unity_ROS2_Robot_Simulator).
 
 ## Installation
 1. Clone this repository, submodules included:
@@ -168,7 +171,9 @@ ros2 topic echo /diffbot/magnetic_guide_link/magnetic_guide
 ```
 
 `position` is the tape's lateral offset in metres, positive to the robot's left, and
-`track_positions` lists every track under the 160 mm bar, so a fork shows two.
+`track_positions` lists every track under the 160 mm bar, so a fork shows two. The
+controller's `gain`, `linear_speed` and `max_angular` are ROS parameters — the defaults
+get the robot round the course, and are a starting point rather than a tuned answer.
 
 The tape is `<collision_material><magnetic_tape polarity="track|marker"/>` on thin boxes;
 `magnetic_tape` implies `sensor_only`, so the robot drives over it. `courses/*.json` plus
@@ -181,8 +186,20 @@ see [sim_props_description](colcon_ws/src/sim_props_description/README.md).
 ros2 launch sim_props_description spawn_prop.launch.py prop:=gnss_canyon
 ```
 
-Buildings line an 8 m street from x=4 to x=26, with two 2 m side streets. Driving along it
-takes the antenna from open sky into the canyon and back out:
+Buildings line a 4 m street from x=4 to x=26, with two 2 m side streets. Driving along it
+takes the antenna from open sky into the canyon and back out, and the whole grade ladder
+shows up on the way — measured driving straight at 0.3 m/s:
+
+| x [m] | Grade | Satellites used | HDOP | sigma |
+|---|---|---|---|---|
+| 2.4 (open sky) | RTK fix | 19 | 0.63 | 2 cm |
+| 7.3 | RTK fix | 5 | 2.0 | 2 cm |
+| 9.9 | RTK float | 8 | 1.0 | 30 cm |
+| 14.8 | single point | 5 | 15.7 | 150 cm |
+| 19.8 (by a side street) | RTK float | 10 | 0.88 | 30 cm |
+
+The street axis cannot be blocked, so a canyon never takes every satellite; widen the
+street to soften the degradation, narrow it to sharpen it.
 
 ```
 ros2 topic echo /diffbot/gnss_antenna_link/extended_fix --field status
