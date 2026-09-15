@@ -22,8 +22,10 @@ public:
     publisher_ = this->create_publisher<geometry_msgs::msg::TwistStamped>("cmd_vel_stamped", 10);
     subscription_ = this->create_subscription<geometry_msgs::msg::Twist>(
       "cmd_vel", 10, std::bind(&MinimalPublisher::cmd_vel_callback, this, _1));
+    // 20 Hz。2 Hz (500ms) だと閉ループ制御には粗すぎ、0.3 m/s で 15 cm ごとに
+    // しか指令が更新されない。磁気ライン追従のような用途で効いてくる。
     timer_ = this->create_wall_timer(
-    500ms, std::bind(&MinimalPublisher::timer_callback, this));
+    50ms, std::bind(&MinimalPublisher::timer_callback, this));
   }
 
 private:
