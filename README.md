@@ -28,10 +28,13 @@ needs and Jazzy does not.
 - Docker (either distro runs entirely inside the container)
 
 ## Installation
-1. Clone this repository:
+1. Clone this repository, submodules included:
 ```
-git clone https://github.com/yourusername/Unity_ROS2_sample.git
+git clone --recursive https://github.com/yourusername/Unity_ROS2_sample.git
 ```
+An existing clone needs `git submodule update --init --recursive`: the simulator's
+services and the `MagneticGuide` message come from `simulation_interfaces` and
+`simulation_ros2_utils`, which are pinned there.
 
 2. Build the Docker image. The ROS distro is chosen by argument (jazzy by default):
 ```
@@ -112,6 +115,90 @@ The script brings up the ROS-TCP-Endpoint and the simulator, runs the suite, and
 Exit codes: 0 = everything as expected, 1 = defects found, 2 = could not run.
 
 See [colcon_ws/src/simulation_service_tests/README.md](colcon_ws/src/simulation_service_tests/README.md) for details.
+
+## Trying the features added in simulator v1.4.0
+
+The simulator version is pinned in `colcon_ws/scripts/simulator_version.txt`, now
+**v1.4.0**. Three of its additions are wired into this sample: objects a lidar sees but
+never collides with, an AGV magnetic line sensor with the tape it follows, and a GNSS
+receiver whose fix degrades the way the buildings around it say it should.
+
+The diffbot carries the new sensors by default. Drop them with
+`use_magnetic_guide:=false` / `use_gnss:=false` on the xacro if you do not want the extra
+work per frame.
+
+Start from the four terminals of [Usage](#usage), then add a prop in another one. The
+props live in `sim_props_description`; each is a URDF entity, so it is listed by
+`get_entities`, removed by `delete_entity`, and cleared by `reset_simulation` with
+`SCOPE_SPAWNED`.
+
+> The `MagneticGuide` message comes from `simulation_extra_interfaces`, built from source
+> in this workspace. Build it and **restart the TCP connector before the simulator
+> connects**, or the type will not resolve.
+
+### Objects the lidar sees but drives through
+
+```
+ros2 launch sim_props_description spawn_prop.launch.py prop:=weeds
+```
+
+Weeds stand 1.5–4 m ahead of the spawn point, taller than the diffbot's lidar plane.
+Drive into them with `teleop_twist_keyboard`: `/diffbot/lidar_link/scan` returns them at
+their true range, the robot passes straight through, and `get_contact_events` records
+nothing.
+
+What makes them see-through is `<collision_material><sensor_only value="true"/>`, which
+turns the collision shape into a Unity trigger — raycasts hit it, contact resolution
+ignores it. A link with **no** `<collision>` is not the same thing: the lidar is a physics
+raycast, so such a link is simply invisible.
+
+### Magnetic line sensor
+
+```
+ros2 launch sim_props_description spawn_prop.launch.py prop:=magnetic_course
+ros2 run unity_diffbot_sim magnetic_line_follower
+```
+
+The course is a 21 m oval of magnetic tape with three markers beside it, and the robot
+spawns on it. `magnetic_line_follower` is a plain proportional controller on the reported
+lateral offset — the same first stage a real AGV uses — and logs each marker it passes.
+
+```
+ros2 topic echo /diffbot/magnetic_guide_link/magnetic_guide
+```
+
+`position` is the tape's lateral offset in metres, positive to the robot's left, and
+`track_positions` lists every track under the 160 mm bar, so a fork shows two.
+
+The tape is `<collision_material><magnetic_tape polarity="track|marker"/>` on thin boxes;
+`magnetic_tape` implies `sensor_only`, so the robot drives over it. `courses/*.json` plus
+`scripts/gen_tape_urdf.py` generate the URDF, so a course of your own is a polyline away —
+see [sim_props_description](colcon_ws/src/sim_props_description/README.md).
+
+### GNSS in an urban canyon
+
+```
+ros2 launch sim_props_description spawn_prop.launch.py prop:=gnss_canyon
+```
+
+Buildings line an 8 m street from x=4 to x=26, with two 2 m side streets. Driving along it
+takes the antenna from open sky into the canyon and back out:
+
+```
+ros2 topic echo /diffbot/gnss_antenna_link/extended_fix --field status
+```
+
+`GPSStatus.status` separates an RTK fix (19) from an RTK float (20), which `NavSatFix`
+structurally cannot — on `/diffbot/gnss_antenna_link/fix` the quality travels in
+`position_covariance` instead, which is what `navsat_transform_node` reads.
+`/diffbot/gnss_antenna_link/nmea` carries GGA/RMC, so an NMEA driver from real hardware
+works here unchanged.
+
+The error is not noise sprinkled on the truth. A blocked satellite drops out of the
+solution and a reflected one enters it carrying the excess length of its detour, so the
+error **points somewhere the buildings explain and repeats at the same place**. Turn on
+`<link> gnss rays` in the entity panel to see the paths: green is direct, thick amber is a
+reflection.
 
 ## Key Features
 - Bidirectional communication with Unity via ROS2 topics

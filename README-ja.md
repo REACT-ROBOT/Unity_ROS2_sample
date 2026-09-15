@@ -28,10 +28,13 @@ Humble 固有の修正が要るときに使います。
 - Docker (どちらの distro もコンテナ内で完結します)
 
 ## インストール方法
-1. このリポジトリをクローンします：
+1. このリポジトリをサブモジュールごとクローンします：
 ```
-git clone https://github.com/yourusername/Unity_ROS2_sample.git
+git clone --recursive https://github.com/yourusername/Unity_ROS2_sample.git
 ```
+クローン済みのものは `git submodule update --init --recursive` を実行してください。
+シミュレータのサービスや `MagneticGuide` メッセージは `simulation_interfaces` と
+`simulation_ros2_utils` から来ており、どちらもサブモジュールで固定してあります。
 
 2. Dockerイメージを作成します。引数で ROS distro を選べます (既定は jazzy)。
 ```
@@ -112,6 +115,86 @@ ROS-TCP-Endpoint とシミュレータの起動から後始末までスクリプ
 終了コードは 0 = すべて期待どおり / 1 = 不具合を検出 / 2 = 実行できなかった、です。
 
 詳細は [colcon_ws/src/simulation_service_tests/README.md](colcon_ws/src/simulation_service_tests/README.md) を参照してください。
+
+## シミュレータ v1.4.0 で増えた機能を試す
+
+シミュレータのバージョンは `colcon_ws/scripts/simulator_version.txt` で固定していて、
+今は **v1.4.0** です。このサンプルでは、その中の 3 つ — LiDAR には映るが衝突しない物体、
+AGV 用の磁気ラインセンサとそのテープ、周りの建物なりに測位が劣化する GNSS 受信機 —
+を試せるようにしてあります。
+
+diffbot には新しいセンサが既定で載ります。1 フレームあたりの計算を増やしたくない場合は、
+xacro に `use_magnetic_guide:=false` / `use_gnss:=false` を渡すと外せます。
+
+[使用方法](#使用方法) の 4 つの端末を立ち上げてから、別の端末で prop を置きます。prop は
+`sim_props_description` にあり、どれも URDF エンティティなので `get_entities` に並び、
+`delete_entity` で消せ、`reset_simulation` の `SCOPE_SPAWNED` で片付きます。
+
+> `MagneticGuide` メッセージはこのワークスペースでビルドされる
+> `simulation_extra_interfaces` のものです。ビルドしたうえで、**シミュレータが接続する前に
+> TCP コネクタを再起動**してください。そうしないと型が解決できません。
+
+### LiDAR には映るが、ぶつからない物体
+
+```
+ros2 launch sim_props_description spawn_prop.launch.py prop:=weeds
+```
+
+スポーン位置の 1.5〜4 m 先に、diffbot の LiDAR のスキャン面より高い草が生えます。
+`teleop_twist_keyboard` で突っ込んでみてください。`/diffbot/lidar_link/scan` には実際の
+距離で返りが立つのに、ロボットはそのまま通り抜け、`get_contact_events` にも何も残りません。
+
+すり抜けの正体は `<collision_material><sensor_only value="true"/>` で、コリジョン形状が
+Unity のトリガになります。レイキャストには当たり、接触解決には入りません。`<collision>` を
+持たないリンクとは別物です。LiDAR は物理レイキャストなので、コライダの無いリンクは
+単に「無い」のと同じになります。
+
+### 磁気ラインセンサ
+
+```
+ros2 launch sim_props_description spawn_prop.launch.py prop:=magnetic_course
+ros2 run unity_diffbot_sim magnetic_line_follower
+```
+
+コースは 1 周 約21 m の楕円の磁気テープで、脇にマーカが 3 箇所あります。ロボットはその上に
+スポーンします。`magnetic_line_follower` は報告された横ずれをそのまま比例制御に入れるだけの
+ノード — 実機の AGV でも同じ段です — で、マーカを通過するたびにログに出します。
+
+```
+ros2 topic echo /diffbot/magnetic_guide_link/magnetic_guide
+```
+
+`position` はテープの横位置 [m] で、ロボットから見て左が正です。`track_positions` には
+160 mm のバーの下にあるトラックが全て並ぶので、分岐では 2 本見えます。
+
+テープは薄い box に `<collision_material><magnetic_tape polarity="track|marker"/>` を付けた
+もので、`magnetic_tape` は `sensor_only` を含意するため踏んで走れます。URDF は
+`courses/*.json` と `scripts/gen_tape_urdf.py` から生成しているので、自分のコースは折れ線を
+書くだけです。詳しくは
+[sim_props_description](colcon_ws/src/sim_props_description/README.md) を参照してください。
+
+### ビル街での GNSS
+
+```
+ros2 launch sim_props_description spawn_prop.launch.py prop:=gnss_canyon
+```
+
+x=4 から x=26 まで、幅 8 m の街路に沿ってビルが建ちます (途中に 2 m の横道が 2 本)。
+そのまま走ると、アンテナは「開空 → 谷間 → 横道 → 谷間 → 開空」と条件が変わります。
+
+```
+ros2 topic echo /diffbot/gnss_antenna_link/extended_fix --field status
+```
+
+`GPSStatus.status` は RTK Fix (19) と Float (20) を区別できます。`NavSatFix` は構造上これが
+できないので、`/diffbot/gnss_antenna_link/fix` では品質が `position_covariance` に載って出ます
+(`navsat_transform_node` が読むのはこちらです)。`/diffbot/gnss_antenna_link/nmea` には
+GGA/RMC が流れるため、実機で使っている NMEA ドライバをそのまま向けられます。
+
+誤差は真値に振りかけたノイズではありません。遮られた衛星は解から抜け、反射してきた衛星は
+回り道の分だけ伸びた行程を持ったまま解に入るので、誤差は**建物で説明できる向きを指し、
+同じ場所では同じように出ます**。GUI のエンティティパネルで `<link> gnss rays` を ON にすると
+経路が描かれます。緑が直達、太いアンバーが反射です。
 
 ## 主な機能
 - ROS2トピックによるUnityとの双方向通信
