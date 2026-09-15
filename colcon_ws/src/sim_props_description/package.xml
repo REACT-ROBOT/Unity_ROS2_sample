@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>sim_props_description</name>
+  <version>0.1.0</version>
+  <description>
+    Props for the Unity_ROS2_Robot_Simulator sample: sensor-only weeds, a magnetic
+    tape course and an urban canyon. Each is a URDF entity, so it is spawned,
+    listed, deleted and reset like any robot.
+  </description>
+
+  <maintainer email="hijimasa@gmail.com">Masaaki Hijikata</maintainer>
+
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>simulation_ros2_utils</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

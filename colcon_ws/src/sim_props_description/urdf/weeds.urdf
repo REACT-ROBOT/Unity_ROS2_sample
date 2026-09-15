@@ -1,0 +1,146 @@
+<?xml version="1.0"?>
+<!-- LiDAR には映るが走行を妨げない物体 (雑草) の例。
+     <collision_material><sensor_only value="true"/> を付けた <collision> は
+     Unity の Collider.isTrigger になる。トリガはレイキャストには当たる一方、
+     接触解決には入らないので、ロボットはそのまま突っ切り get_contact_events
+     にも残らない。collision を持たないリンクでは LiDAR のレイが当たらず
+     「何も無い」のと同じになるため、collision は普通に書いて sensor_only で
+     トリガにするのが正しい書き方。
+
+     株ごとにリンクを作らないこと: リンクは全て ArticulationBody になり、
+     PhysX は 1 つの articulation につき 64 body までしか持てない。リンクは
+     1 つにして <collision> を並べる (リンクあたりのコライダ数に上限は無い)。
+     また、トリガだけのボディは何にも支えられないので world リンクに fixed で
+     吊るす。そうしないと床をすり抜けて落ち続ける。
+
+     56 株、x=1.5..4.0 / y=-0.9..0.9 に配置。草丈は 0.45-0.75 m で、
+     diffbot の LiDAR (床上 0.27 m) のスキャン面より高い。 -->
+<robot name="weeds">
+  <material name="weed_green">
+    <color rgba="0.25 0.6 0.2 1.0"/>
+  </material>
+
+  <collision_material name="weed">
+    <sensor_only value="true"/>
+  </collision_material>
+
+  <link name="world"/>
+  <link name="weeds_link">
+    <visual><origin xyz="1.517 -0.876 0.240" rpy="0 0 0"/><geometry><cylinder radius="0.031" length="0.481"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.517 -0.876 0.240" rpy="0 0 0"/><geometry><cylinder radius="0.031" length="0.481"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.48 -0.658 0.269" rpy="0 0 0"/><geometry><cylinder radius="0.026" length="0.538"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.48 -0.658 0.269" rpy="0 0 0"/><geometry><cylinder radius="0.026" length="0.538"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.507 -0.274 0.234" rpy="0 0 0"/><geometry><cylinder radius="0.022" length="0.469"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.507 -0.274 0.234" rpy="0 0 0"/><geometry><cylinder radius="0.022" length="0.469"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.458 -0.03 0.335" rpy="0 0 0"/><geometry><cylinder radius="0.02" length="0.669"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.458 -0.03 0.335" rpy="0 0 0"/><geometry><cylinder radius="0.02" length="0.669"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.495 0.327 0.288" rpy="0 0 0"/><geometry><cylinder radius="0.027" length="0.577"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.495 0.327 0.288" rpy="0 0 0"/><geometry><cylinder radius="0.027" length="0.577"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.541 0.578 0.270" rpy="0 0 0"/><geometry><cylinder radius="0.024" length="0.539"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.541 0.578 0.270" rpy="0 0 0"/><geometry><cylinder radius="0.024" length="0.539"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.534 0.877 0.246" rpy="0 0 0"/><geometry><cylinder radius="0.022" length="0.493"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.534 0.877 0.246" rpy="0 0 0"/><geometry><cylinder radius="0.022" length="0.493"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.798 -0.92 0.352" rpy="0 0 0"/><geometry><cylinder radius="0.022" length="0.705"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.798 -0.92 0.352" rpy="0 0 0"/><geometry><cylinder radius="0.022" length="0.705"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.822 -0.593 0.338" rpy="0 0 0"/><geometry><cylinder radius="0.03" length="0.676"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.822 -0.593 0.338" rpy="0 0 0"/><geometry><cylinder radius="0.03" length="0.676"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.871 -0.331 0.254" rpy="0 0 0"/><geometry><cylinder radius="0.022" length="0.508"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.871 -0.331 0.254" rpy="0 0 0"/><geometry><cylinder radius="0.022" length="0.508"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.856 0.029 0.229" rpy="0 0 0"/><geometry><cylinder radius="0.024" length="0.458"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.856 0.029 0.229" rpy="0 0 0"/><geometry><cylinder radius="0.024" length="0.458"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.886 0.36 0.325" rpy="0 0 0"/><geometry><cylinder radius="0.035" length="0.649"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.886 0.36 0.325" rpy="0 0 0"/><geometry><cylinder radius="0.035" length="0.649"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.811 0.543 0.255" rpy="0 0 0"/><geometry><cylinder radius="0.023" length="0.51"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.811 0.543 0.255" rpy="0 0 0"/><geometry><cylinder radius="0.023" length="0.51"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="1.915 0.946 0.252" rpy="0 0 0"/><geometry><cylinder radius="0.025" length="0.503"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="1.915 0.946 0.252" rpy="0 0 0"/><geometry><cylinder radius="0.025" length="0.503"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.208 -0.889 0.341" rpy="0 0 0"/><geometry><cylinder radius="0.03" length="0.681"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.208 -0.889 0.341" rpy="0 0 0"/><geometry><cylinder radius="0.03" length="0.681"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.247 -0.627 0.296" rpy="0 0 0"/><geometry><cylinder radius="0.03" length="0.593"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.247 -0.627 0.296" rpy="0 0 0"/><geometry><cylinder radius="0.03" length="0.593"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.273 -0.242 0.272" rpy="0 0 0"/><geometry><cylinder radius="0.029" length="0.543"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.273 -0.242 0.272" rpy="0 0 0"/><geometry><cylinder radius="0.029" length="0.543"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.227 -0.024 0.346" rpy="0 0 0"/><geometry><cylinder radius="0.021" length="0.693"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.227 -0.024 0.346" rpy="0 0 0"/><geometry><cylinder radius="0.021" length="0.693"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.206 0.256 0.261" rpy="0 0 0"/><geometry><cylinder radius="0.022" length="0.522"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.206 0.256 0.261" rpy="0 0 0"/><geometry><cylinder radius="0.022" length="0.522"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.26 0.591 0.268" rpy="0 0 0"/><geometry><cylinder radius="0.032" length="0.536"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.26 0.591 0.268" rpy="0 0 0"/><geometry><cylinder radius="0.032" length="0.536"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.221 0.935 0.270" rpy="0 0 0"/><geometry><cylinder radius="0.029" length="0.54"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.221 0.935 0.270" rpy="0 0 0"/><geometry><cylinder radius="0.029" length="0.54"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.524 -0.893 0.319" rpy="0 0 0"/><geometry><cylinder radius="0.021" length="0.638"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.524 -0.893 0.319" rpy="0 0 0"/><geometry><cylinder radius="0.021" length="0.638"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.587 -0.658 0.238" rpy="0 0 0"/><geometry><cylinder radius="0.023" length="0.476"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.587 -0.658 0.238" rpy="0 0 0"/><geometry><cylinder radius="0.023" length="0.476"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.588 -0.309 0.318" rpy="0 0 0"/><geometry><cylinder radius="0.025" length="0.635"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.588 -0.309 0.318" rpy="0 0 0"/><geometry><cylinder radius="0.025" length="0.635"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.582 -0.026 0.326" rpy="0 0 0"/><geometry><cylinder radius="0.027" length="0.652"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.582 -0.026 0.326" rpy="0 0 0"/><geometry><cylinder radius="0.027" length="0.652"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.55 0.359 0.255" rpy="0 0 0"/><geometry><cylinder radius="0.025" length="0.51"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.55 0.359 0.255" rpy="0 0 0"/><geometry><cylinder radius="0.025" length="0.51"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.574 0.554 0.304" rpy="0 0 0"/><geometry><cylinder radius="0.021" length="0.609"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.574 0.554 0.304" rpy="0 0 0"/><geometry><cylinder radius="0.021" length="0.609"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.59 0.842 0.270" rpy="0 0 0"/><geometry><cylinder radius="0.031" length="0.539"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.59 0.842 0.270" rpy="0 0 0"/><geometry><cylinder radius="0.031" length="0.539"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.983 -0.889 0.249" rpy="0 0 0"/><geometry><cylinder radius="0.02" length="0.498"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.983 -0.889 0.249" rpy="0 0 0"/><geometry><cylinder radius="0.02" length="0.498"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.916 -0.639 0.255" rpy="0 0 0"/><geometry><cylinder radius="0.026" length="0.509"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.916 -0.639 0.255" rpy="0 0 0"/><geometry><cylinder radius="0.026" length="0.509"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.958 -0.249 0.356" rpy="0 0 0"/><geometry><cylinder radius="0.032" length="0.713"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.958 -0.249 0.356" rpy="0 0 0"/><geometry><cylinder radius="0.032" length="0.713"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.977 0.007 0.250" rpy="0 0 0"/><geometry><cylinder radius="0.023" length="0.5"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.977 0.007 0.250" rpy="0 0 0"/><geometry><cylinder radius="0.023" length="0.5"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.966 0.304 0.373" rpy="0 0 0"/><geometry><cylinder radius="0.027" length="0.746"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.966 0.304 0.373" rpy="0 0 0"/><geometry><cylinder radius="0.027" length="0.746"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.918 0.634 0.308" rpy="0 0 0"/><geometry><cylinder radius="0.035" length="0.616"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.918 0.634 0.308" rpy="0 0 0"/><geometry><cylinder radius="0.035" length="0.616"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="2.963 0.959 0.298" rpy="0 0 0"/><geometry><cylinder radius="0.031" length="0.597"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="2.963 0.959 0.298" rpy="0 0 0"/><geometry><cylinder radius="0.031" length="0.597"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.279 -0.886 0.288" rpy="0 0 0"/><geometry><cylinder radius="0.02" length="0.577"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.279 -0.886 0.288" rpy="0 0 0"/><geometry><cylinder radius="0.02" length="0.577"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.315 -0.559 0.253" rpy="0 0 0"/><geometry><cylinder radius="0.03" length="0.506"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.315 -0.559 0.253" rpy="0 0 0"/><geometry><cylinder radius="0.03" length="0.506"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.326 -0.289 0.321" rpy="0 0 0"/><geometry><cylinder radius="0.023" length="0.641"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.326 -0.289 0.321" rpy="0 0 0"/><geometry><cylinder radius="0.023" length="0.641"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.253 0.002 0.313" rpy="0 0 0"/><geometry><cylinder radius="0.033" length="0.626"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.253 0.002 0.313" rpy="0 0 0"/><geometry><cylinder radius="0.033" length="0.626"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.283 0.24 0.242" rpy="0 0 0"/><geometry><cylinder radius="0.024" length="0.484"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.283 0.24 0.242" rpy="0 0 0"/><geometry><cylinder radius="0.024" length="0.484"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.255 0.634 0.306" rpy="0 0 0"/><geometry><cylinder radius="0.033" length="0.613"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.255 0.634 0.306" rpy="0 0 0"/><geometry><cylinder radius="0.033" length="0.613"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.311 0.927 0.374" rpy="0 0 0"/><geometry><cylinder radius="0.021" length="0.749"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.311 0.927 0.374" rpy="0 0 0"/><geometry><cylinder radius="0.021" length="0.749"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.694 -0.95 0.314" rpy="0 0 0"/><geometry><cylinder radius="0.032" length="0.627"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.694 -0.95 0.314" rpy="0 0 0"/><geometry><cylinder radius="0.032" length="0.627"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.613 -0.636 0.294" rpy="0 0 0"/><geometry><cylinder radius="0.028" length="0.588"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.613 -0.636 0.294" rpy="0 0 0"/><geometry><cylinder radius="0.028" length="0.588"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.635 -0.346 0.362" rpy="0 0 0"/><geometry><cylinder radius="0.031" length="0.725"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.635 -0.346 0.362" rpy="0 0 0"/><geometry><cylinder radius="0.031" length="0.725"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.65 -0.013 0.303" rpy="0 0 0"/><geometry><cylinder radius="0.034" length="0.607"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.65 -0.013 0.303" rpy="0 0 0"/><geometry><cylinder radius="0.034" length="0.607"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.658 0.309 0.368" rpy="0 0 0"/><geometry><cylinder radius="0.028" length="0.736"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.658 0.309 0.368" rpy="0 0 0"/><geometry><cylinder radius="0.028" length="0.736"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.602 0.603 0.273" rpy="0 0 0"/><geometry><cylinder radius="0.021" length="0.545"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.602 0.603 0.273" rpy="0 0 0"/><geometry><cylinder radius="0.021" length="0.545"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.649 0.897 0.309" rpy="0 0 0"/><geometry><cylinder radius="0.027" length="0.619"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.649 0.897 0.309" rpy="0 0 0"/><geometry><cylinder radius="0.027" length="0.619"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.994 -0.94 0.363" rpy="0 0 0"/><geometry><cylinder radius="0.023" length="0.726"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.994 -0.94 0.363" rpy="0 0 0"/><geometry><cylinder radius="0.023" length="0.726"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.995 -0.604 0.285" rpy="0 0 0"/><geometry><cylinder radius="0.032" length="0.571"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.995 -0.604 0.285" rpy="0 0 0"/><geometry><cylinder radius="0.032" length="0.571"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.949 -0.276 0.289" rpy="0 0 0"/><geometry><cylinder radius="0.032" length="0.579"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.949 -0.276 0.289" rpy="0 0 0"/><geometry><cylinder radius="0.032" length="0.579"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.966 -0.002 0.261" rpy="0 0 0"/><geometry><cylinder radius="0.029" length="0.521"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.966 -0.002 0.261" rpy="0 0 0"/><geometry><cylinder radius="0.029" length="0.521"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.975 0.243 0.313" rpy="0 0 0"/><geometry><cylinder radius="0.021" length="0.626"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.975 0.243 0.313" rpy="0 0 0"/><geometry><cylinder radius="0.021" length="0.626"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.989 0.608 0.345" rpy="0 0 0"/><geometry><cylinder radius="0.027" length="0.69"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.989 0.608 0.345" rpy="0 0 0"/><geometry><cylinder radius="0.027" length="0.69"/></geometry><collision_material name="weed"/></collision>
+    <visual><origin xyz="3.946 0.942 0.353" rpy="0 0 0"/><geometry><cylinder radius="0.032" length="0.706"/></geometry><material name="weed_green"/></visual>
+    <collision><origin xyz="3.946 0.942 0.353" rpy="0 0 0"/><geometry><cylinder radius="0.032" length="0.706"/></geometry><collision_material name="weed"/></collision>
+  </link>
+  <joint name="weeds_fix" type="fixed">
+    <parent link="world"/>
+    <child link="weeds_link"/>
+  </joint>
+</robot>
